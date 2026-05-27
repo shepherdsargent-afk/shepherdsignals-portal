@@ -9,6 +9,7 @@ const PROVIDERS = [
   {
     id: 'jonas',
     name: 'Jonas Club Software',
+    domain: 'jonassoftware.com',
     short: 'J',
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
@@ -19,6 +20,7 @@ const PROVIDERS = [
   {
     id: 'quickbooks',
     name: 'QuickBooks Online',
+    domain: 'quickbooks.intuit.com',
     short: 'QB',
     iconBg: 'bg-green-500/10',
     iconColor: 'text-green-400',
@@ -32,6 +34,7 @@ const PROVIDERS = [
   {
     id: 'xero',
     name: 'Xero',
+    domain: 'xero.com',
     short: 'X',
     iconBg: 'bg-cyan-500/10',
     iconColor: 'text-cyan-400',
@@ -45,6 +48,7 @@ const PROVIDERS = [
   {
     id: 'wave',
     name: 'Wave Accounting',
+    domain: 'waveapps.com',
     short: 'WV',
     iconBg: 'bg-teal-500/10',
     iconColor: 'text-teal-400',
@@ -58,6 +62,7 @@ const PROVIDERS = [
   {
     id: 'freshbooks',
     name: 'FreshBooks',
+    domain: 'freshbooks.com',
     short: 'FB',
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
@@ -71,6 +76,7 @@ const PROVIDERS = [
   {
     id: 'netsuite',
     name: 'NetSuite',
+    domain: 'netsuite.com',
     short: 'NS',
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
@@ -85,6 +91,7 @@ const PROVIDERS = [
   {
     id: 'dynamics365',
     name: 'Dynamics 365',
+    domain: 'microsoft.com',
     short: 'D365',
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-300',
@@ -99,6 +106,7 @@ const PROVIDERS = [
   {
     id: 'sap',
     name: 'SAP Ariba / Coupa',
+    domain: 'sap.com',
     short: 'SAP',
     iconBg: 'bg-orange-500/10',
     iconColor: 'text-orange-400',
@@ -108,6 +116,24 @@ const PROVIDERS = [
     enterprise: true,
   },
 ]
+
+function ProviderIcon({ provider }: { provider: typeof PROVIDERS[0] }) {
+  const [failed, setFailed] = useState(false)
+  return (
+    <div className={`w-12 h-12 rounded-xl ${failed ? provider.iconBg : 'bg-white'} border border-white/10 flex items-center justify-center shrink-0 overflow-hidden p-1.5`}>
+      {failed ? (
+        <span className={`${provider.iconColor} text-xs font-bold`}>{provider.short}</span>
+      ) : (
+        <img
+          src={`https://logo.clearbit.com/${provider.domain}`}
+          alt={provider.name}
+          className="w-full h-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  )
+}
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<any[]>([])
@@ -130,7 +156,6 @@ export default function IntegrationsPage() {
       setCompanyId(cu.company_id)
       const { data } = await supabase.from('company_integrations').select('*').eq('company_id', cu.company_id)
       setIntegrations(data ?? [])
-
       const params = new URLSearchParams(window.location.search)
       const conn = params.get('connected')
       if (conn) { setConnected(conn); window.history.replaceState({}, '', window.location.pathname) }
@@ -166,9 +191,7 @@ export default function IntegrationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
       })
-    } finally {
-      setSyncing(null)
-    }
+    } finally { setSyncing(null) }
   }
 
   function handleJonasFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -210,7 +233,6 @@ export default function IntegrationsPage() {
       vendor_name: row[jonasMap.vendor_name] ?? 'Jonas Import',
       date:        row[jonasMap.date] ?? new Date().toISOString(),
     })).filter(i => i.description && i.unit_price > 0)
-
     await fetch(`${SUPABASE_URL}/functions/v1/process-jonas-csv`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -222,8 +244,8 @@ export default function IntegrationsPage() {
   }
 
   const steps = [
-    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only.' },
-    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices &mdash; same intelligence as uploading an invoice, but fully automatic.' },
+    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only &mdash; nothing else.' },
+    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices, automatically, with the same intelligence as uploading an invoice.' },
     { step: '3', title: 'Save', desc: 'Get alerted to every savings opportunity. Prices refresh daily so you always have current data.' },
   ]
 
@@ -252,9 +274,7 @@ export default function IntegrationsPage() {
             <div key={provider.id} className={`card flex flex-col gap-4 ${provider.enterprise ? 'border-amber-500/10' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg ${provider.iconBg} border border-white/10 flex items-center justify-center shrink-0`}>
-                    <span className={`${provider.iconColor} text-xs font-bold`}>{provider.short}</span>
-                  </div>
+                  <ProviderIcon provider={provider} />
                   <div>
                     <p className="text-white font-semibold text-sm">{provider.name}</p>
                     <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{provider.desc}</p>
@@ -296,13 +316,17 @@ export default function IntegrationsPage() {
                     </button>
                   </>
                 ) : provider.type === 'enterprise' ? (
-                  <a href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Enquiry"
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors">
+                  <a
+                    href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Enquiry"
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors"
+                  >
                     Contact Sales
                   </a>
                 ) : oauthUrl ? (
-                  <a href={oauthUrl}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-black transition-colors">
+                  <a
+                    href={oauthUrl}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-black transition-colors"
+                  >
                     Connect
                   </a>
                 ) : (
