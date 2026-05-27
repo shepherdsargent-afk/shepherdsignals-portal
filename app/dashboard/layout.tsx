@@ -31,7 +31,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen bg-[#080d1a] overflow-hidden">
-      {/* Sidebar */}
       <aside className="w-64 shrink-0 flex flex-col bg-[#0a0f1e] border-r border-white/5">
 
         {/* Company branding */}
@@ -44,8 +43,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 className="w-10 h-10 rounded-lg object-cover shrink-0 border border-white/10"
               />
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                <span className="text-indigo-400 text-sm font-bold">{initials}</span>
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <span className="text-amber-400 text-sm font-bold">{initials}</span>
               </div>
             )}
             <div className="min-w-0">
@@ -55,7 +54,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </p>
             </div>
           </div>
-          <p className="text-indigo-500 text-[10px] font-semibold tracking-widest uppercase mt-3">ShepherdSignals</p>
+          {/* Gold ShepherdSignals brand */}
+          <p className="text-amber-400/80 text-[10px] font-semibold tracking-widest uppercase mt-3">ShepherdSignals</p>
         </div>
 
         {/* Nav */}
@@ -89,7 +89,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
