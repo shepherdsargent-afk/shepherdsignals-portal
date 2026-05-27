@@ -4,6 +4,8 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 
+const EDGE_BASE = 'https://lmrgzsfvzzdoatpddjvb.supabase.co/functions/v1'
+
 export default function InvoicesPage() {
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -48,7 +50,7 @@ export default function InvoicesPage() {
 
     // Upload to Supabase Storage
     const fileName = `${cu.company_id}/${Date.now()}-${file.name}`
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('invoices')
       .upload(fileName, file, { contentType: file.type })
 
@@ -60,21 +62,46 @@ export default function InvoicesPage() {
 
     const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(fileName)
 
-    // Create invoice record
-    const { error: dbError } = await supabase.from('invoices').insert({
-      company_id: cu.company_id,
-      file_url: urlData.publicUrl,
-      status: 'pending',
-    })
+    // Create invoice record and get back the ID
+    const { data: insertedInvoice, error: dbError } = await supabase
+      .from('invoices')
+      .insert({
+        company_id: cu.company_id,
+        file_url: urlData.publicUrl,
+        status: 'pending',
+      })
+      .select('id')
+      .single()
 
-    if (dbError) {
-      setError(dbError.message)
-    } else {
-      setSuccess(true)
-      if (fileRef.current) fileRef.current.value = ''
-      setLoaded(false) // reload list
+    if (dbError || !insertedInvoice) {
+      setError(dbError?.message ?? 'Failed to save invoice')
+      setUploading(false)
+      return
     }
+
+    setSuccess(true)
+    if (fileRef.current) fileRef.current.value = ''
+    setLoaded(false)
     setUploading(false)
+
+    // Trigger Gemini processing (fire and forget)
+    const sessionRes = await supabase.auth.getSession()
+    const token = sessionRes.data.session?.access_token
+    if (token) {
+      fetch(`${EDGE_BASE}/process-invoice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ invoiceId: insertedInvoice.id }),
+      })
+        .then(() => {
+          // Reload list after a short delay so processed status shows
+          setTimeout(() => setLoaded(false), 4000)
+        })
+        .catch(() => {})
+    }
   }
 
   const statusColor: Record<string, string> = {
@@ -108,8 +135,8 @@ export default function InvoicesPage() {
             {uploading ? 'Uploading...' : 'Upload'}
           </button>
         </form>
-        {success && <p className="text-green-400 text-sm mt-3">✅ Invoice uploaded — Shepherd will process it shortly</p>}
-        {error && <p className="text-red-400 text-sm mt-3">❌ {error}</p>}
+        {success && <p className="text-green-400 text-sm mt-3">Invoice uploaded - Shepherd is processing it now</p>}
+        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
       </div>
 
       {/* Invoice List */}
@@ -119,11 +146,11 @@ export default function InvoicesPage() {
           <div className="space-y-2">
             {invoices.map((inv: any) => (
               <div key={inv.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/3 transition-colors">
-                <span className="text-2xl">🧾</span>
+                <span className="text-2xl">ðŸ§¾</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">
                     {inv.invoice_number ? `Invoice #${inv.invoice_number}` : 'Invoice'}
-                    {inv.vendors?.name && <span className="text-gray-500 font-normal"> — {inv.vendors.name}</span>}
+                    {inv.vendors?.name && <span className="text-gray-500 font-normal"> â€” {inv.vendors.name}</span>}
                   </p>
                   <p className="text-gray-600 text-xs">{format(new Date(inv.created_at), 'MMM d, yyyy h:mm a')}</p>
                 </div>
@@ -135,7 +162,7 @@ export default function InvoicesPage() {
                 </span>
                 {inv.file_url && (
                   <a href={inv.file_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white text-xs">
-                    View ↗
+                    View
                   </a>
                 )}
               </div>
@@ -143,7 +170,7 @@ export default function InvoicesPage() {
           </div>
         ) : (
           <div className="text-center py-10 text-gray-500">
-            <div className="text-4xl mb-3">🧾</div>
+            <div className="text-4xl mb-3">ðŸ§¾</div>
             <p>No invoices uploaded yet</p>
           </div>
         )}
