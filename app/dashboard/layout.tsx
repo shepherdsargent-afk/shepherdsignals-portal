@@ -29,6 +29,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ? company.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
     : 'SS'
 
+  function PlanBadge({ plan }: { plan: string }) {
+    if (plan === 'both') {
+      return (
+        <span className="text-xs">
+          <span className="text-green-400">Daily</span>
+          <span className="text-gray-600"> + </span>
+          <span className="text-white">Weekly</span>
+        </span>
+      )
+    }
+    if (plan === 'daily') return <span className="text-xs text-green-400">Daily</span>
+    if (plan === 'weekly') return <span className="text-xs text-white">Weekly</span>
+    return <span className="text-xs text-gray-600">Plan</span>
+  }
+
   return (
     <div className="flex h-screen bg-[#080d1a] overflow-hidden">
       <aside className="w-64 shrink-0 flex flex-col bg-[#0a0f1e] border-r border-white/5">
@@ -49,9 +64,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             )}
             <div className="min-w-0">
               <p className="text-white text-sm font-semibold truncate">{company?.name ?? 'Dashboard'}</p>
-              <p className="text-gray-600 text-xs mt-0.5">
-                {company?.plan === 'weekly' ? 'Weekly Plan' : company?.plan === 'both' ? 'Daily + Weekly' : 'Plan'}
-              </p>
+              <PlanBadge plan={company?.plan ?? ''} />
             </div>
           </div>
           {/* Gold ShepherdSignals brand */}
