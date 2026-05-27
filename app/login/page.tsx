@@ -32,15 +32,18 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
+    try {
+      const res = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send magic link')
       setMagicSent(true)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
       setLoading(false)
     }
   }
@@ -49,8 +52,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
         <div className="card max-w-md w-full text-center">
-          <div className="text-5xl mb-4">📬</div>
-          <h2 className="text-xl font-bold text-white mb-2">Check your email</h2>
+          <div className="text-5xl mb-4">Check your email</div>
+          <h2 className="text-xl font-bold text-white mb-2">Magic link sent!</h2>
           <p className="text-gray-400">We sent a magic link to <strong className="text-white">{email}</strong>. Click it to sign in.</p>
           <button onClick={() => setMagicSent(false)} className="mt-6 text-sm text-brand-light hover:underline">
             Use a different email
@@ -63,18 +66,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
       <div className="card max-w-md w-full">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-10 h-10 rounded-full bg-brand-mid flex items-center justify-center">
-              <span className="text-xl">🐑</span>
+              <span className="text-xl">S</span>
             </div>
             <span className="text-white font-bold text-xl tracking-wide">ShepherdSignals</span>
           </div>
-          <p className="text-gray-400 text-sm">Client Portal — Sign in to your account</p>
+          <p className="text-gray-400 text-sm">Client Portal - Sign in to your account</p>
         </div>
 
-        {/* Mode toggle */}
         <div className="flex rounded-lg overflow-hidden border border-white/10 mb-6">
           <button
             onClick={() => setMode('password')}
@@ -111,7 +112,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                placeholder="..."
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-light focus:bg-white/8 transition-colors"
               />
             </div>
@@ -133,10 +134,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-xs text-gray-600">
-          Having trouble? Contact{' '}
-          <a href="mailto:shepherdsargent@shepherdsignals.com" className="text-brand-light hover:underline">
-            shepherdsargent@shepherdsignals.com
-          </a>
+          Having trouble? Contact shepherdsargent@shepherdsignals.com
         </p>
       </div>
     </div>
