@@ -25,7 +25,9 @@ export default function SettingsPage() {
       if (cu?.companies) {
         const c = cu.companies as any
         setCompany(c)
-        setPlan(c.plan ?? 'weekly')
+        // Normalise: treat 'daily' as 'weekly' since it is no longer a standalone option
+        const p = c.plan ?? 'weekly'
+        setPlan(p === 'daily' ? 'weekly' : p)
         setDailyEnabled(c.daily_signals_enabled ?? false)
       }
     }
@@ -45,19 +47,13 @@ export default function SettingsPage() {
     {
       value: 'weekly',
       label: 'Weekly Audit',
-      desc: 'Full weekly audit every Monday â€” trends, comparisons, and savings opportunities',
+      desc: 'Full weekly audit every Monday - trends, comparisons, and savings opportunities',
       paid: false,
     },
     {
-      value: 'daily',
-      label: 'Daily Signals',
-      desc: 'Price change summary every morning with notable movements from your vendors',
-      paid: true,
-    },
-    {
       value: 'both',
-      label: 'Daily + Weekly',
-      desc: 'Daily signals plus the full weekly audit â€” stay on top of everything',
+      label: 'Weekly + Daily Signals',
+      desc: 'Weekly audit plus a daily price change summary every morning from your vendors',
       paid: true,
     },
   ]
