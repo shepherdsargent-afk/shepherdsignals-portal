@@ -20,7 +20,7 @@ export default function AlertsPage() {
       .eq('company_id', cu.company_id)
       .eq('dismissed', false)
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(50)
     setAlerts(data ?? [])
     setLoading(false)
   }
@@ -33,38 +33,31 @@ export default function AlertsPage() {
   }
 
   function exportToExcel() {
-    const rows = [
-      ['Item', 'Alert Type', 'Your Price ($/unit)', 'Market Price ($/unit)', 'Savings/Unit ($)', 'Savings %', 'Supplier', 'Supplier URL', 'Category', 'Date']
-    ]
-    for (const a of alerts) {
+    const BOM = 'ï»¿'
+    const headers = ['Item', 'Alert Type', 'Your Price ($/unit)', 'Market Price ($/unit)', 'Savings/Unit ($)', 'Savings %', 'Supplier', 'Supplier URL', 'Category', 'Date']
+    const rows = alerts.map(a => {
       const type = a.alert_type === 'better_price_available' ? 'Savings Opportunity'
-        : a.alert_type === 'good_price' ? 'Good Price' : 'At Market Rate'
-      rows.push([
-        a.item_description ?? '',
+        : a.alert_type === 'good_price' ? 'Good Price' : 'Market Rate'
+      return [
+        `"${(a.item_description ?? '').replace(/"/g, '""')}"`,
         type,
         Number(a.your_unit_price ?? 0).toFixed(2),
         Number(a.market_unit_price ?? 0).toFixed(2),
         Math.abs(Number(a.savings_per_unit ?? 0)).toFixed(2),
         `${Math.abs(Number(a.savings_pct ?? 0)).toFixed(1)}%`,
-        a.suggested_vendor ?? '',
+        `"${(a.suggested_vendor ?? '').replace(/"/g, '""')}"`,
         a.vendor_website ?? '',
         a.category ?? '',
-        a.created_at ? format(new Date(a.created_at), 'MMM d, yyyy') : '',
-      ])
-    }
-
-    const csv = rows.map(row =>
-      row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-    ).join('\r\n')
-
-    const blob = new Blob(['ï»¿' + csv], { type: 'text/csv;charset=utf-8;' })
+        a.created_at ? format(new Date(a.created_at), 'yyyy-MM-dd') : '',
+      ].join(',')
+    })
+    const csv = BOM + [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `price-alerts-${format(new Date(), 'yyyy-MM-dd')}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `shepherdsignals-alerts-${format(new Date(), 'yyyy-MM-dd')}.csv`
+    link.click()
     URL.revokeObjectURL(url)
   }
 
@@ -74,7 +67,7 @@ export default function AlertsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Price Alerts</h1>
           <p className="text-gray-400 mt-1">ShepherdSignals compares your invoice prices against current market rates</p>
@@ -111,7 +104,7 @@ export default function AlertsPage() {
       {overpriced.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3">
-            Savings Opportunities â€” {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
+            Savings Opportunities &mdash; {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
           </h2>
           <div className="space-y-3">
             {overpriced.map((alert: any) => (
@@ -124,7 +117,7 @@ export default function AlertsPage() {
       {market.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
-            At Market Rate â€” {market.length} item{market.length > 1 ? 's' : ''}
+            At Market Rate &mdash; {market.length} item{market.length > 1 ? 's' : ''}
           </h2>
           <div className="space-y-3">
             {market.map((alert: any) => (
@@ -137,7 +130,7 @@ export default function AlertsPage() {
       {good.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-green-400 uppercase tracking-wide mb-3">
-            Good Prices â€” {good.length} item{good.length > 1 ? 's' : ''} below market
+            Good Prices &mdash; {good.length} item{good.length > 1 ? 's' : ''} below market
           </h2>
           <div className="space-y-3">
             {good.map((alert: any) => (
@@ -153,7 +146,10 @@ export default function AlertsPage() {
 function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) => void }) {
   const isOverpriced = alert.alert_type === 'better_price_available'
   const isGood = alert.alert_type === 'good_price'
-  const savingsPct = Math.abs(alert.savings_pct ?? 0)
+  const savingsPct = Math.abs(Number(alert.savings_pct ?? 0))
+  const yourPrice = Number(alert.your_unit_price ?? 0)
+  const marketPrice = Number(alert.market_unit_price ?? 0)
+  const savingsPerUnit = Math.abs(Number(alert.savings_per_unit ?? (yourPrice - marketPrice)))
 
   return (
     <div className={`card group relative border-l-4 ${isOverpriced ? 'border-l-red-500' : isGood ? 'border-l-green-500' : 'border-l-yellow-500'}`}>
@@ -177,61 +173,53 @@ function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) =
           <div className="flex items-center gap-6 mt-3 text-sm flex-wrap">
             <div>
               <p className="text-gray-500 text-xs mb-0.5">You paid</p>
-              <p className="text-white font-semibold tabular-nums">${Number(alert.your_unit_price).toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span></p>
+              <p className="text-white font-semibold tabular-nums">${yourPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span></p>
             </div>
             <div className="text-gray-600 text-xs">vs</div>
             <div>
               <p className="text-gray-500 text-xs mb-0.5">Market rate</p>
               <p className={`font-semibold tabular-nums ${isOverpriced ? 'text-green-400' : isGood ? 'text-red-400' : 'text-yellow-400'}`}>
-                ${Number(alert.market_unit_price).toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span>
+                ${marketPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span>
               </p>
             </div>
-            {alert.savings_per_unit && Math.abs(alert.savings_per_unit) > 0.01 && (
+            {savingsPerUnit > 0.01 && (
               <div>
                 <p className="text-gray-500 text-xs mb-0.5">{isOverpriced ? 'Could save' : 'Saving'}</p>
                 <p className={`font-semibold tabular-nums ${isOverpriced ? 'text-red-400' : 'text-green-400'}`}>
-                  ${Math.abs(alert.savings_per_unit).toFixed(2)}/unit
+                  ${savingsPerUnit.toFixed(2)}/unit
                 </p>
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {alert.suggested_vendor && !alert.vendor_website && (
-              <p className="text-gray-500 text-sm">
-                {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-brand-light">{alert.suggested_vendor}</span>
-                {alert.market_source && alert.market_source !== alert.suggested_vendor && (
-                  <span className="text-gray-600"> via {alert.market_source}</span>
-                )}
-              </p>
-            )}
-            {alert.vendor_website && (
+            {alert.suggested_vendor && alert.vendor_website && (
               <a
                 href={alert.vendor_website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-mid/40 text-brand-light hover:bg-brand-mid/60 transition-colors font-medium"
+                className="inline-flex items-center gap-1.5 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                Visit {alert.suggested_vendor}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
+                  <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
-                Visit {alert.suggested_vendor ?? 'supplier'}
               </a>
             )}
+            {alert.suggested_vendor && !alert.vendor_website && (
+              <p className="text-gray-500 text-sm">
+                {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-brand-light">{alert.suggested_vendor}</span>
+              </p>
+            )}
+            <button
+              onClick={() => onDismiss(alert.id)}
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors ml-auto"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
-
-        <button
-          onClick={() => onDismiss(alert.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-gray-400 shrink-0 p-1 rounded"
-          title="Dismiss"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
       </div>
     </div>
   )
