@@ -9,7 +9,7 @@ const PROVIDERS = [
   {
     id: 'jonas',
     name: 'Jonas Club Software',
-    domain: 'jonassoftware.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=jonassoftware.com',
     short: 'J',
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
@@ -20,7 +20,7 @@ const PROVIDERS = [
   {
     id: 'quickbooks',
     name: 'QuickBooks Online',
-    domain: 'quickbooks.intuit.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=quickbooks.intuit.com',
     short: 'QB',
     iconBg: 'bg-green-500/10',
     iconColor: 'text-green-400',
@@ -34,7 +34,7 @@ const PROVIDERS = [
   {
     id: 'xero',
     name: 'Xero',
-    domain: 'xero.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=xero.com',
     short: 'X',
     iconBg: 'bg-cyan-500/10',
     iconColor: 'text-cyan-400',
@@ -48,7 +48,7 @@ const PROVIDERS = [
   {
     id: 'wave',
     name: 'Wave Accounting',
-    domain: 'waveapps.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=waveapps.com',
     short: 'WV',
     iconBg: 'bg-teal-500/10',
     iconColor: 'text-teal-400',
@@ -62,7 +62,7 @@ const PROVIDERS = [
   {
     id: 'freshbooks',
     name: 'FreshBooks',
-    domain: 'freshbooks.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=freshbooks.com',
     short: 'FB',
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
@@ -76,7 +76,7 @@ const PROVIDERS = [
   {
     id: 'netsuite',
     name: 'NetSuite',
-    domain: 'netsuite.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=netsuite.com',
     short: 'NS',
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
@@ -91,7 +91,7 @@ const PROVIDERS = [
   {
     id: 'dynamics365',
     name: 'Dynamics 365',
-    domain: 'microsoft.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=microsoft.com',
     short: 'D365',
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-300',
@@ -106,7 +106,7 @@ const PROVIDERS = [
   {
     id: 'sap',
     name: 'SAP Ariba / Coupa',
-    domain: 'sap.com',
+    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sap.com',
     short: 'SAP',
     iconBg: 'bg-orange-500/10',
     iconColor: 'text-orange-400',
@@ -120,12 +120,12 @@ const PROVIDERS = [
 function ProviderIcon({ provider }: { provider: typeof PROVIDERS[0] }) {
   const [failed, setFailed] = useState(false)
   return (
-    <div className={`w-12 h-12 rounded-xl ${failed ? provider.iconBg : 'bg-white'} border border-white/10 flex items-center justify-center shrink-0 overflow-hidden p-1.5`}>
+    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 overflow-hidden ${failed ? provider.iconBg + ' border border-white/10' : 'bg-white p-1.5'}`}>
       {failed ? (
         <span className={`${provider.iconColor} text-xs font-bold`}>{provider.short}</span>
       ) : (
         <img
-          src={`https://logo.clearbit.com/${provider.domain}`}
+          src={provider.logoUrl}
           alt={provider.name}
           className="w-full h-full object-contain"
           onError={() => setFailed(true)}
@@ -244,8 +244,8 @@ export default function IntegrationsPage() {
   }
 
   const steps = [
-    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only &mdash; nothing else.' },
-    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices, automatically, with the same intelligence as uploading an invoice.' },
+    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only.' },
+    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices automatically, with the same intelligence as uploading an invoice.' },
     { step: '3', title: 'Save', desc: 'Get alerted to every savings opportunity. Prices refresh daily so you always have current data.' },
   ]
 
@@ -366,7 +366,6 @@ export default function IntegrationsPage() {
         })}
       </div>
 
-      {/* How it works */}
       <div className="card bg-amber-500/5 border-amber-500/10">
         <h2 className="text-white font-semibold mb-4">How it works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -377,7 +376,7 @@ export default function IntegrationsPage() {
               </div>
               <div>
                 <p className="text-white text-sm font-medium">{s.title}</p>
-                <p className="text-gray-500 text-xs mt-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: s.desc }} />
+                <p className="text-gray-500 text-xs mt-1 leading-relaxed">{s.desc}</p>
               </div>
             </div>
           ))}
