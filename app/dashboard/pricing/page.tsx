@@ -15,82 +15,55 @@ export default async function PricingPage() {
 
   const companyId = companyUser?.company_id
 
-  const { data: records } = await supabase
-    .from('price_records')
-    .select('*, products(name, category), vendors(name)')
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('*, vendors(name)')
     .eq('company_id', companyId)
-    .order('invoice_date', { ascending: false })
-    .limit(100)
-
-  // Group by product
-  const byProduct: Record<string, any[]> = {}
-  records?.forEach(r => {
-    const key = r.products?.name ?? 'Unknown'
-    if (!byProduct[key]) byProduct[key] = []
-    byProduct[key].push(r)
-  })
+    .eq('status', 'processed')
+    .order('created_at', { ascending: false })
 
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Price History</h1>
-        <p className="text-gray-400 mt-1">Historical pricing data from your invoices</p>
+        <p className="text-gray-400 mt-1">Invoice pricing data extracted by Shepherd</p>
       </div>
 
-      {Object.keys(byProduct).length > 0 ? (
-        <div className="space-y-6">
-          {Object.entries(byProduct).map(([productName, rows]) => {
-            const latest = rows[0]
-            const prev = rows[1]
-            const change = prev ? ((latest.price - prev.price) / prev.price) * 100 : null
-            return (
-              <div key={productName} className="card">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-white font-semibold">{productName}</h3>
-                    <p className="text-gray-500 text-xs capitalize">{latest.products?.category}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white font-bold text-xl">${latest.price.toFixed(2)}</p>
-                    <p className="text-gray-500 text-xs">per {latest.unit}</p>
-                    {change !== null && (
-                      <p className={`text-xs font-medium ${change > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                        {change > 0 ? '▲' : '▼'} {Math.abs(change).toFixed(1)}% vs prev
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-gray-600 text-xs border-b border-white/5">
-                        <th className="text-left pb-2 pr-4">Date</th>
-                        <th className="text-left pb-2 pr-4">Vendor</th>
-                        <th className="text-left pb-2 pr-4">Invoice #</th>
-                        <th className="text-right pb-2">Price</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/3">
-                      {rows.map((r: any) => (
-                        <tr key={r.id}>
-                          <td className="py-2 pr-4 text-gray-400">{format(new Date(r.invoice_date), 'MMM d, yyyy')}</td>
-                          <td className="py-2 pr-4 text-gray-300">{r.vendors?.name}</td>
-                          <td className="py-2 pr-4 text-gray-600">{r.invoice_number ?? '—'}</td>
-                          <td className="py-2 text-right text-white font-medium">${r.price.toFixed(2)}<span className="text-gray-600 font-normal text-xs">/{r.unit}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )
-          })}
+      {invoices && invoices.length > 0 ? (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 border-b border-white/5 text-xs uppercase tracking-wide">
+                <th className="text-left pb-3 pr-4">Invoice #</th>
+                <th className="text-left pb-3 pr-4">Vendor</th>
+                <th className="text-left pb-3 pr-4">Date</th>
+                <th className="text-right pb-3">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {invoices.map((inv: any) => (
+                <tr key={inv.id} className="hover:bg-white/3 transition-colors">
+                  <td className="py-3 pr-4 text-gray-300">{inv.invoice_number ?? 'â€”'}</td>
+                  <td className="py-3 pr-4 text-white font-medium">{inv.vendors?.name ?? 'â€”'}</td>
+                  <td className="py-3 pr-4 text-gray-400">
+                    {inv.invoice_date
+                      ? format(new Date(inv.invoice_date), 'MMM d, yyyy')
+                      : format(new Date(inv.created_at), 'MMM d, yyyy')}
+                  </td>
+                  <td className="py-3 text-right font-bold">
+                    {inv.total_amount
+                      ? <span className="text-white">${Number(inv.total_amount).toFixed(2)}</span>
+                      : <span className="text-gray-600">â€”</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="card text-center py-16">
-          <div className="text-5xl mb-4">📈</div>
-          <p className="text-white font-medium">No price records yet</p>
-          <p className="text-gray-500 text-sm mt-2">Upload your invoices and we'll extract the pricing data</p>
+          <p className="text-white font-medium">No price history yet</p>
+          <p className="text-gray-500 text-sm mt-2">Upload invoices and Shepherd will extract the pricing data</p>
           <a href="/dashboard/invoices" className="btn-primary inline-block mt-4 px-6 py-2">Upload Invoices</a>
         </div>
       )}
