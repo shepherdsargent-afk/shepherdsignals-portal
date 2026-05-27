@@ -4,6 +4,36 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 
+// Fallback URLs for well-known vendors (used when vendor_website is not stored)
+const VENDOR_URLS: Record<string, string> = {
+  amazon:              'https://www.amazon.ca',
+  'amazon.ca':         'https://www.amazon.ca',
+  'amazon canada':     'https://www.amazon.ca',
+  sysco:               'https://www.sysco.ca',
+  'gordon food service': 'https://www.gfs.com',
+  gfs:                 'https://www.gfs.com',
+  staples:             'https://www.staples.ca',
+  costco:              'https://www.costco.ca',
+  uline:               'https://www.uline.ca',
+  webstaurantstore:    'https://www.webstaurantstore.com',
+  'restaurant depot':  'https://www.restaurantdepot.com',
+  grainger:            'https://www.grainger.ca',
+  'home depot':        'https://www.homedepot.ca',
+  totalpack:           'https://www.totalpack.ca',
+  officecrave:         'https://www.officecrave.com',
+  'global industrial': 'https://www.globalindustrial.ca',
+}
+
+function resolveVendorUrl(vendorName: string | null, storedUrl: string | null): string | null {
+  if (storedUrl) return storedUrl
+  if (!vendorName) return null
+  const key = vendorName.toLowerCase().trim()
+  for (const [k, v] of Object.entries(VENDOR_URLS)) {
+    if (key.includes(k) || k.includes(key)) return v
+  }
+  return null
+}
+
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +76,7 @@ export default function AlertsPage() {
         Math.abs(Number(a.savings_per_unit ?? 0)).toFixed(2),
         `${Math.abs(Number(a.savings_pct ?? 0)).toFixed(1)}%`,
         `"${(a.suggested_vendor ?? '').replace(/"/g, '""')}"`,
-        a.vendor_website ?? '',
+        resolveVendorUrl(a.suggested_vendor, a.vendor_website) ?? '',
         a.category ?? '',
         a.created_at ? format(new Date(a.created_at), 'yyyy-MM-dd') : '',
       ].join(',')
@@ -79,19 +109,14 @@ export default function AlertsPage() {
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
             Export to Excel
           </button>
         )}
       </div>
 
-      {loading && (
-        <div className="card text-center py-16">
-          <p className="text-gray-500">Loading price intelligence...</p>
-        </div>
-      )}
+      {loading && <div className="card text-center py-16"><p className="text-gray-500">Loading price intelligence...</p></div>}
 
       {!loading && alerts.length === 0 && (
         <div className="card text-center py-16">
@@ -106,37 +131,23 @@ export default function AlertsPage() {
           <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3">
             Savings Opportunities &mdash; {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
           </h2>
-          <div className="space-y-3">
-            {overpriced.map((alert: any) => (
-              <AlertCard key={alert.id} alert={alert} onDismiss={dismiss} />
-            ))}
-          </div>
+          <div className="space-y-3">{overpriced.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
         </section>
       )}
-
       {market.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
             At Market Rate &mdash; {market.length} item{market.length > 1 ? 's' : ''}
           </h2>
-          <div className="space-y-3">
-            {market.map((alert: any) => (
-              <AlertCard key={alert.id} alert={alert} onDismiss={dismiss} />
-            ))}
-          </div>
+          <div className="space-y-3">{market.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
         </section>
       )}
-
       {good.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-green-400 uppercase tracking-wide mb-3">
             Good Prices &mdash; {good.length} item{good.length > 1 ? 's' : ''} below market
           </h2>
-          <div className="space-y-3">
-            {good.map((alert: any) => (
-              <AlertCard key={alert.id} alert={alert} onDismiss={dismiss} />
-            ))}
-          </div>
+          <div className="space-y-3">{good.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
         </section>
       )}
     </div>
@@ -145,11 +156,12 @@ export default function AlertsPage() {
 
 function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) => void }) {
   const isOverpriced = alert.alert_type === 'better_price_available'
-  const isGood = alert.alert_type === 'good_price'
-  const savingsPct = Math.abs(Number(alert.savings_pct ?? 0))
-  const yourPrice = Number(alert.your_unit_price ?? 0)
-  const marketPrice = Number(alert.market_unit_price ?? 0)
+  const isGood       = alert.alert_type === 'good_price'
+  const savingsPct   = Math.abs(Number(alert.savings_pct ?? 0))
+  const yourPrice    = Number(alert.your_unit_price ?? 0)
+  const marketPrice  = Number(alert.market_unit_price ?? 0)
   const savingsPerUnit = Math.abs(Number(alert.savings_per_unit ?? (yourPrice - marketPrice)))
+  const vendorUrl    = resolveVendorUrl(alert.suggested_vendor, alert.vendor_website)
 
   return (
     <div className={`card group relative border-l-4 ${isOverpriced ? 'border-l-red-500' : isGood ? 'border-l-green-500' : 'border-l-yellow-500'}`}>
@@ -193,29 +205,21 @@ function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) =
           </div>
 
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {alert.suggested_vendor && alert.vendor_website && (
-              <a
-                href={alert.vendor_website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Visit {alert.suggested_vendor}
+            {vendorUrl ? (
+              <a href={vendorUrl} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                {isOverpriced ? 'Buy cheaper at' : 'View at'} {alert.suggested_vendor}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                   <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
               </a>
-            )}
-            {alert.suggested_vendor && !alert.vendor_website && (
+            ) : alert.suggested_vendor ? (
               <p className="text-gray-500 text-sm">
-                {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-brand-light">{alert.suggested_vendor}</span>
+                {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-amber-400">{alert.suggested_vendor}</span>
               </p>
-            )}
-            <button
-              onClick={() => onDismiss(alert.id)}
-              className="text-xs text-gray-600 hover:text-gray-400 transition-colors ml-auto"
-            >
+            ) : null}
+            <button onClick={() => onDismiss(alert.id)} className="text-xs text-gray-600 hover:text-gray-400 transition-colors ml-auto">
               Dismiss
             </button>
           </div>
