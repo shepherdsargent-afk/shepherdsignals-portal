@@ -9,16 +9,20 @@ const PROVIDERS = [
   {
     id: 'jonas',
     name: 'Jonas Club Software',
+    short: 'J',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     desc: 'Import purchase orders and vendor invoices via CSV export',
-    icon: 'ðŸ“‹',
     type: 'csv',
     price: 'Included',
   },
   {
     id: 'quickbooks',
     name: 'QuickBooks Online',
+    short: 'QB',
+    iconBg: 'bg-green-500/10',
+    iconColor: 'text-green-400',
     desc: 'Sync vendor bills and purchase orders automatically',
-    icon: 'ðŸ’š',
     type: 'oauth',
     envKey: 'NEXT_PUBLIC_QB_CLIENT_ID',
     authUrl: 'https://appcenter.intuit.com/connect/oauth2',
@@ -28,8 +32,10 @@ const PROVIDERS = [
   {
     id: 'xero',
     name: 'Xero',
+    short: 'X',
+    iconBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-400',
     desc: 'Connect accounts payable invoices from Xero',
-    icon: 'ðŸ’™',
     type: 'oauth',
     envKey: 'NEXT_PUBLIC_XERO_CLIENT_ID',
     authUrl: 'https://login.xero.com/identity/connect/authorize',
@@ -37,10 +43,38 @@ const PROVIDERS = [
     price: 'Included',
   },
   {
+    id: 'wave',
+    name: 'Wave Accounting',
+    short: 'WV',
+    iconBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-400',
+    desc: 'Import supplier bills from Wave accounting',
+    type: 'oauth',
+    envKey: 'NEXT_PUBLIC_WAVE_CLIENT_ID',
+    authUrl: 'https://api.waveapps.com/oauth2/authorize/',
+    scope: 'account:* business:read transactions:read',
+    price: 'Included',
+  },
+  {
+    id: 'freshbooks',
+    name: 'FreshBooks',
+    short: 'FB',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+    desc: 'Connect vendor expenses and bills from FreshBooks',
+    type: 'oauth',
+    envKey: 'NEXT_PUBLIC_FRESHBOOKS_CLIENT_ID',
+    authUrl: 'https://auth.freshbooks.com/service/auth/oauth/authorize',
+    scope: 'user:profile:read user:bill_vendors:read user:bills:read',
+    price: 'Included',
+  },
+  {
     id: 'netsuite',
     name: 'NetSuite',
+    short: 'NS',
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
     desc: 'Enterprise ERP vendor bill synchronization',
-    icon: 'ðŸ”·',
     type: 'oauth',
     envKey: 'NEXT_PUBLIC_NETSUITE_CLIENT_ID',
     authUrl: '',
@@ -51,8 +85,10 @@ const PROVIDERS = [
   {
     id: 'dynamics365',
     name: 'Dynamics 365',
+    short: 'D365',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-300',
     desc: 'Microsoft Business Central purchase invoice sync',
-    icon: 'ðŸ”µ',
     type: 'oauth',
     envKey: 'NEXT_PUBLIC_DYNAMICS_CLIENT_ID',
     authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
@@ -61,32 +97,12 @@ const PROVIDERS = [
     enterprise: true,
   },
   {
-    id: 'wave',
-    name: 'Wave',
-    desc: 'Import supplier bills from Wave accounting',
-    icon: 'ðŸŒŠ',
-    type: 'oauth',
-    envKey: 'NEXT_PUBLIC_WAVE_CLIENT_ID',
-    authUrl: 'https://api.waveapps.com/oauth2/authorize/',
-    scope: 'account:* business:read transactions:read',
-    price: 'Included',
-  },
-  {
-    id: 'freshbooks',
-    name: 'FreshBooks',
-    desc: 'Connect vendor expenses and bills from FreshBooks',
-    icon: 'ðŸ“—',
-    type: 'oauth',
-    envKey: 'NEXT_PUBLIC_FRESHBOOKS_CLIENT_ID',
-    authUrl: 'https://auth.freshbooks.com/service/auth/oauth/authorize',
-    scope: 'user:profile:read user:bill_vendors:read user:bills:read',
-    price: 'Included',
-  },
-  {
     id: 'sap',
-    name: 'SAP Ariba',
+    name: 'SAP Ariba / Coupa',
+    short: 'SAP',
+    iconBg: 'bg-orange-500/10',
+    iconColor: 'text-orange-400',
     desc: 'Enterprise procurement and spend management sync',
-    icon: 'â¬›',
     type: 'enterprise',
     price: '$349/mo add-on',
     enterprise: true,
@@ -115,7 +131,6 @@ export default function IntegrationsPage() {
       const { data } = await supabase.from('company_integrations').select('*').eq('company_id', cu.company_id)
       setIntegrations(data ?? [])
 
-      // Check for OAuth callback success
       const params = new URLSearchParams(window.location.search)
       const conn = params.get('connected')
       if (conn) { setConnected(conn); window.history.replaceState({}, '', window.location.pathname) }
@@ -206,6 +221,12 @@ export default function IntegrationsPage() {
     setJonasCols([])
   }
 
+  const steps = [
+    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only.' },
+    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices &mdash; same intelligence as uploading an invoice, but fully automatic.' },
+    { step: '3', title: 'Save', desc: 'Get alerted to every savings opportunity. Prices refresh daily so you always have current data.' },
+  ]
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -229,15 +250,17 @@ export default function IntegrationsPage() {
 
           return (
             <div key={provider.id} className={`card flex flex-col gap-4 ${provider.enterprise ? 'border-amber-500/10' : ''}`}>
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">{provider.icon}</span>
+                  <div className={`w-10 h-10 rounded-lg ${provider.iconBg} border border-white/10 flex items-center justify-center shrink-0`}>
+                    <span className={`${provider.iconColor} text-xs font-bold`}>{provider.short}</span>
+                  </div>
                   <div>
-                    <p className="text-white font-semibold">{provider.name}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">{provider.desc}</p>
+                    <p className="text-white font-semibold text-sm">{provider.name}</p>
+                    <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{provider.desc}</p>
                   </div>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded border shrink-0 ml-2 ${
+                <span className={`text-xs px-2 py-1 rounded border shrink-0 whitespace-nowrap ${
                   provider.enterprise
                     ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                     : 'bg-green-500/10 text-green-400 border-green-500/20'
@@ -287,7 +310,6 @@ export default function IntegrationsPage() {
                 )}
               </div>
 
-              {/* Jonas CSV column mapping */}
               {provider.id === 'jonas' && jonasRows.length > 0 && (
                 <div className="mt-2 pt-4 border-t border-white/5">
                   <p className="text-gray-400 text-xs mb-3">{jonasRows.length} rows found &mdash; map columns:</p>
@@ -322,20 +344,16 @@ export default function IntegrationsPage() {
 
       {/* How it works */}
       <div className="card bg-amber-500/5 border-amber-500/10">
-        <h2 className="text-white font-semibold mb-3">How it works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only.' },
-            { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices &mdash; same intelligence as uploading an invoice, but fully automatic.' },
-            { step: '3', title: 'Save', desc: 'Get alerted to every savings opportunity. The system refreshes daily so prices are always current.' },
-          ].map(s => (
+        <h2 className="text-white font-semibold mb-4">How it works</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {steps.map(s => (
             <div key={s.step} className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
                 <span className="text-amber-400 text-xs font-bold">{s.step}</span>
               </div>
               <div>
                 <p className="text-white text-sm font-medium">{s.title}</p>
-                <p className="text-gray-500 text-xs mt-0.5" dangerouslySetInnerHTML={{ __html: s.desc }} />
+                <p className="text-gray-500 text-xs mt-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: s.desc }} />
               </div>
             </div>
           ))}
