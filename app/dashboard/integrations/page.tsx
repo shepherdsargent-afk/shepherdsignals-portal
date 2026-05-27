@@ -1,123 +1,95 @@
 'use client'
-
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
-
-const SUPABASE_URL = 'https://lmrgzsfvzzdoatpddjvb.supabase.co'
+import { useState, useEffect } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const PROVIDERS = [
   {
     id: 'jonas',
     name: 'Jonas Club Software',
+    desc: 'Upload your Jonas CSV export to sync purchase orders and invoices automatically.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=jonassoftware.com',
     short: 'J',
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
-    desc: 'Import purchase orders and vendor invoices via CSV export',
     type: 'csv',
-    price: 'Included',
+    category: 'accounting',
   },
   {
     id: 'quickbooks',
     name: 'QuickBooks Online',
+    desc: 'Connect your QuickBooks account to sync invoices, vendors, and spend data in real time.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=quickbooks.intuit.com',
     short: 'QB',
     iconBg: 'bg-green-500/10',
     iconColor: 'text-green-400',
-    desc: 'Sync vendor bills and purchase orders automatically',
     type: 'oauth',
-    envKey: 'NEXT_PUBLIC_QB_CLIENT_ID',
-    authUrl: 'https://appcenter.intuit.com/connect/oauth2',
-    scope: 'com.intuit.quickbooks.accounting',
-    price: 'Included',
+    loginUrl: 'https://accounts.intuit.com/app/sign-in?app_group=quickbooks',
+    signupUrl: 'https://quickbooks.intuit.com/global/pricing/',
+    category: 'accounting',
   },
   {
     id: 'xero',
     name: 'Xero',
+    desc: 'Connect Xero to pull purchase orders, bills, and supplier data into your ShepherdSignals dashboard.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=xero.com',
     short: 'X',
-    iconBg: 'bg-cyan-500/10',
-    iconColor: 'text-cyan-400',
-    desc: 'Connect accounts payable invoices from Xero',
+    iconBg: 'bg-sky-500/10',
+    iconColor: 'text-sky-400',
     type: 'oauth',
-    envKey: 'NEXT_PUBLIC_XERO_CLIENT_ID',
-    authUrl: 'https://login.xero.com/identity/connect/authorize',
-    scope: 'accounting.transactions.read',
-    price: 'Included',
+    loginUrl: 'https://login.xero.com/',
+    signupUrl: 'https://www.xero.com/signup/',
+    category: 'accounting',
   },
   {
     id: 'wave',
     name: 'Wave Accounting',
+    desc: 'Free accounting software. Connect Wave to track vendor payments and flag price anomalies.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=waveapps.com',
     short: 'WV',
     iconBg: 'bg-teal-500/10',
     iconColor: 'text-teal-400',
-    desc: 'Import supplier bills from Wave accounting',
     type: 'oauth',
-    envKey: 'NEXT_PUBLIC_WAVE_CLIENT_ID',
-    authUrl: 'https://api.waveapps.com/oauth2/authorize/',
-    scope: 'account:* business:read transactions:read',
-    price: 'Included',
+    loginUrl: 'https://my.waveapps.com/login/',
+    signupUrl: 'https://www.waveapps.com/',
+    category: 'accounting',
   },
   {
     id: 'freshbooks',
     name: 'FreshBooks',
+    desc: 'Connect FreshBooks to sync expense reports and supplier invoices with your price monitoring.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=freshbooks.com',
     short: 'FB',
-    iconBg: 'bg-emerald-500/10',
-    iconColor: 'text-emerald-400',
-    desc: 'Connect vendor expenses and bills from FreshBooks',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
     type: 'oauth',
-    envKey: 'NEXT_PUBLIC_FRESHBOOKS_CLIENT_ID',
-    authUrl: 'https://auth.freshbooks.com/service/auth/oauth/authorize',
-    scope: 'user:profile:read user:bill_vendors:read user:bills:read',
-    price: 'Included',
+    loginUrl: 'https://my.freshbooks.com/#/login',
+    signupUrl: 'https://www.freshbooks.com/signup',
+    category: 'accounting',
   },
+]
+
+const ENTERPRISE_PROVIDERS = [
   {
     id: 'netsuite',
     name: 'NetSuite',
+    desc: 'Enterprise ERP with full procurement module. Available on our Enterprise plan for larger club groups and resort properties.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=netsuite.com',
     short: 'NS',
-    iconBg: 'bg-purple-500/10',
-    iconColor: 'text-purple-400',
-    desc: 'Enterprise ERP vendor bill synchronization',
-    type: 'oauth',
-    envKey: 'NEXT_PUBLIC_NETSUITE_CLIENT_ID',
-    authUrl: '',
-    scope: '',
-    price: '$249/mo add-on',
-    enterprise: true,
+    iconBg: 'bg-orange-500/10',
+    iconColor: 'text-orange-400',
   },
   {
     id: 'dynamics365',
     name: 'Dynamics 365',
+    desc: 'Microsoft enterprise ERP. Connect your Dynamics environment for full procurement data sync. Available on Enterprise plan.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=microsoft.com',
-    short: 'D365',
-    iconBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-300',
-    desc: 'Microsoft Business Central purchase invoice sync',
-    type: 'oauth',
-    envKey: 'NEXT_PUBLIC_DYNAMICS_CLIENT_ID',
-    authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-    scope: 'https://api.businesscentral.dynamics.com/.default',
-    price: '$249/mo add-on',
-    enterprise: true,
-  },
-  {
-    id: 'sap',
-    name: 'SAP Ariba / Coupa',
-    logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=sap.com',
-    short: 'SAP',
-    iconBg: 'bg-orange-500/10',
-    iconColor: 'text-orange-400',
-    desc: 'Enterprise procurement and spend management sync',
-    type: 'enterprise',
-    price: '$349/mo add-on',
-    enterprise: true,
+    short: 'D',
+    iconBg: 'bg-blue-600/10',
+    iconColor: 'text-blue-400',
   },
 ]
 
-function ProviderIcon({ provider }: { provider: typeof PROVIDERS[0] }) {
+function ProviderIcon({ provider }: { provider: { logoUrl: string; short: string; iconBg: string; iconColor: string; name: string } }) {
   const [failed, setFailed] = useState(false)
   return (
     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 overflow-hidden ${failed ? provider.iconBg + ' border border-white/10' : 'bg-white p-1.5'}`}>
@@ -135,17 +107,59 @@ function ProviderIcon({ provider }: { provider: typeof PROVIDERS[0] }) {
   )
 }
 
+function ConnectModal({ provider, onClose }: { provider: typeof PROVIDERS[0]; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+        <div className="flex items-center gap-3 mb-4">
+          <ProviderIcon provider={provider} />
+          <div>
+            <h3 className="font-semibold text-white">{provider.name}</h3>
+            <p className="text-xs text-gray-400">Connect your account</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-400 mb-5">
+          Sign in to your {provider.name} account to authorize ShepherdSignals to read your invoices and vendor data.
+        </p>
+        <div className="flex flex-col gap-2">
+          <a
+            href={provider.loginUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold py-2.5 rounded-xl text-sm text-center transition-colors"
+          >
+            Sign in to {provider.name}
+          </a>
+          <a
+            href={provider.signupUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-white/5 hover:bg-white/10 text-gray-300 font-medium py-2.5 rounded-xl text-sm text-center transition-colors border border-white/10"
+          >
+            Create {provider.name} account
+          </a>
+          <button
+            onClick={onClose}
+            className="w-full text-gray-500 hover:text-gray-300 text-sm py-2 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+        <p className="text-xs text-gray-600 mt-4 text-center">
+          After signing in, return here and refresh to complete the connection.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function IntegrationsPage() {
-  const [integrations, setIntegrations] = useState<any[]>([])
-  const [syncing, setSyncing] = useState<string | null>(null)
-  const [jonasParsing, setJonasParsing] = useState(false)
-  const [jonasCols, setJonasCols] = useState<string[]>([])
-  const [jonasRows, setJonasRows] = useState<any[]>([])
-  const [jonasMap, setJonasMap] = useState<Record<string, string>>({})
-  const [companyId, setCompanyId] = useState<string | null>(null)
-  const [connected, setConnected] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const [company, setCompany] = useState<any>(null)
+  const [connected, setConnected] = useState<Record<string, boolean>>({})
+  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [activeModal, setActiveModal] = useState<typeof PROVIDERS[0] | null>(null)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     async function load() {
@@ -153,234 +167,145 @@ export default function IntegrationsPage() {
       if (!user) return
       const { data: cu } = await supabase.from('company_users').select('company_id').eq('user_id', user.id).single()
       if (!cu) return
-      setCompanyId(cu.company_id)
-      const { data } = await supabase.from('company_integrations').select('*').eq('company_id', cu.company_id)
-      setIntegrations(data ?? [])
-      const params = new URLSearchParams(window.location.search)
-      const conn = params.get('connected')
-      if (conn) { setConnected(conn); window.history.replaceState({}, '', window.location.pathname) }
+      const { data: co } = await supabase.from('companies').select('*').eq('id', cu.company_id).single()
+      setCompany(co)
+      const { data: integrations } = await supabase.from('integrations').select('provider, status').eq('company_id', cu.company_id)
+      if (integrations) {
+        const map: Record<string, boolean> = {}
+        integrations.forEach((i: any) => { if (i.status === 'active') map[i.provider] = true })
+        setConnected(map)
+      }
     }
     load()
-  }, [])
+  }, [supabase])
 
-  function isConnected(providerId: string) {
-    return integrations.some(i => i.provider === providerId && i.status === 'active')
-  }
-
-  function buildOAuthUrl(provider: typeof PROVIDERS[0]) {
-    if (provider.type !== 'oauth' || !provider.authUrl) return null
-    const clientId = process.env[provider.envKey ?? ''] ?? ''
-    if (!clientId) return null
-    const redirect = `${SUPABASE_URL}/functions/v1/oauth-callback`
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirect,
-      response_type: 'code',
-      scope: provider.scope ?? '',
-      state: `${provider.id}:${companyId}`,
-    })
-    return `${provider.authUrl}?${params.toString()}`
-  }
-
-  async function handleSync(providerId: string) {
-    if (!companyId) return
-    setSyncing(providerId)
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/sync-${providerId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId }),
-      })
-    } finally { setSyncing(null) }
-  }
-
-  function handleJonasFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleJonasUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
-    setJonasParsing(true)
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string
+    if (!file || !company) return
+    setUploading(true)
+    setUploadMsg('')
+    try {
+      const text = await file.text()
       const lines = text.split('\n').filter(l => l.trim())
-      if (lines.length < 2) { setJonasParsing(false); return }
-      const cols = lines[0].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
-      const rows = lines.slice(1).map(line => {
-        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-        return Object.fromEntries(cols.map((c, i) => [c, vals[i] ?? '']))
-      })
-      setJonasCols(cols)
-      setJonasRows(rows)
-      const guessCol = (hints: string[]) => cols.find(c => hints.some(h => c.toLowerCase().includes(h))) ?? ''
-      setJonasMap({
-        description: guessCol(['desc', 'item', 'product', 'name']),
-        quantity:    guessCol(['qty', 'quan']),
-        unit_price:  guessCol(['price', 'unit', 'cost', 'rate']),
-        vendor_name: guessCol(['vendor', 'supplier']),
-        date:        guessCol(['date', 'posted']),
-      })
-      setJonasParsing(false)
+      const headers = lines[0].split(',').map((h: string) => h.trim().toLowerCase())
+      let imported = 0
+      for (let i = 1; i < Math.min(lines.length, 201); i++) {
+        const vals = lines[i].split(',')
+        const row: Record<string, string> = {}
+        headers.forEach((h: string, idx: number) => { row[h] = (vals[idx] || '').trim() })
+        if (row['item'] || row['description'] || row['product']) {
+          await supabase.from('price_records').insert({
+            company_id: company.id,
+            product_name: row['item'] || row['description'] || row['product'] || 'Unknown',
+            vendor_name: row['vendor'] || row['supplier'] || 'Jonas Import',
+            unit_price: parseFloat(row['price'] || row['unit price'] || row['amount'] || '0') || 0,
+            quantity: parseFloat(row['qty'] || row['quantity'] || '1') || 1,
+            recorded_at: row['date'] || new Date().toISOString(),
+            source: 'jonas_csv',
+          })
+          imported++
+        }
+      }
+      setUploadMsg(`Successfully imported ${imported} records from Jonas.`)
+    } catch {
+      setUploadMsg('Error reading file. Please check the CSV format.')
     }
-    reader.readAsText(file)
+    setUploading(false)
   }
-
-  async function submitJonasImport() {
-    if (!companyId || !jonasRows.length) return
-    setSyncing('jonas')
-    const items = jonasRows.map(row => ({
-      description: row[jonasMap.description] ?? '',
-      quantity:    parseFloat(row[jonasMap.quantity]) || 1,
-      unit_price:  parseFloat(row[jonasMap.unit_price]) || 0,
-      vendor_name: row[jonasMap.vendor_name] ?? 'Jonas Import',
-      date:        row[jonasMap.date] ?? new Date().toISOString(),
-    })).filter(i => i.description && i.unit_price > 0)
-    await fetch(`${SUPABASE_URL}/functions/v1/process-jonas-csv`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyId, items }),
-    })
-    setSyncing(null)
-    setJonasRows([])
-    setJonasCols([])
-  }
-
-  const steps = [
-    { step: '1', title: 'Connect', desc: 'Link your accounting software with one click. We read purchase orders and vendor bills only.' },
-    { step: '2', title: 'Analyse', desc: 'Every line item is checked against current market prices automatically, with the same intelligence as uploading an invoice.' },
-    { step: '3', title: 'Save', desc: 'Get alerted to every savings opportunity. Prices refresh daily so you always have current data.' },
-  ]
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Integrations</h1>
-        <p className="text-gray-400 mt-1">Connect your accounting software to automatically analyse every purchase order</p>
-      </div>
-
-      {connected && (
-        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          <span className="text-sm font-medium">{connected} connected successfully</span>
-        </div>
+    <div className="p-6 max-w-3xl mx-auto">
+      {activeModal && (
+        <ConnectModal provider={activeModal} onClose={() => setActiveModal(null)} />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {PROVIDERS.map(provider => {
-          const active = isConnected(provider.id)
-          const oauthUrl = buildOAuthUrl(provider)
-
-          return (
-            <div key={provider.id} className={`card flex flex-col gap-4 ${provider.enterprise ? 'border-amber-500/10' : ''}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <ProviderIcon provider={provider} />
-                  <div>
-                    <p className="text-white font-semibold text-sm">{provider.name}</p>
-                    <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{provider.desc}</p>
-                  </div>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded border shrink-0 whitespace-nowrap ${
-                  provider.enterprise
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                    : 'bg-green-500/10 text-green-400 border-green-500/20'
-                }`}>
-                  {provider.price}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 mt-auto">
-                {active ? (
-                  <>
-                    <span className="flex items-center gap-1.5 text-xs text-green-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                      Connected
-                    </span>
-                    <button
-                      onClick={() => handleSync(provider.id)}
-                      disabled={syncing === provider.id}
-                      className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors disabled:opacity-50"
-                    >
-                      {syncing === provider.id ? 'Syncing...' : 'Sync Now'}
-                    </button>
-                  </>
-                ) : provider.type === 'csv' ? (
-                  <>
-                    <input type="file" accept=".csv" ref={fileRef} className="hidden" onChange={handleJonasFile} />
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      disabled={jonasParsing}
-                      className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-black transition-colors disabled:opacity-50"
-                    >
-                      {jonasParsing ? 'Parsing...' : 'Import CSV'}
-                    </button>
-                  </>
-                ) : provider.type === 'enterprise' ? (
-                  <a
-                    href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Enquiry"
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors"
-                  >
-                    Contact Sales
-                  </a>
-                ) : oauthUrl ? (
-                  <a
-                    href={oauthUrl}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-black transition-colors"
-                  >
-                    Connect
-                  </a>
-                ) : (
-                  <span className="text-xs text-gray-600">Setup required &mdash; contact support</span>
-                )}
-              </div>
-
-              {provider.id === 'jonas' && jonasRows.length > 0 && (
-                <div className="mt-2 pt-4 border-t border-white/5">
-                  <p className="text-gray-400 text-xs mb-3">{jonasRows.length} rows found &mdash; map columns:</p>
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    {(['description', 'quantity', 'unit_price', 'vendor_name'] as const).map(field => (
-                      <div key={field}>
-                        <label className="text-gray-600 text-xs capitalize">{field.replace('_', ' ')}</label>
-                        <select
-                          value={jonasMap[field] ?? ''}
-                          onChange={e => setJonasMap(prev => ({ ...prev, [field]: e.target.value }))}
-                          className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-gray-300 text-xs"
-                        >
-                          <option value="">-- select --</option>
-                          {jonasCols.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={submitJonasImport}
-                    disabled={syncing === 'jonas'}
-                    className="w-full py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-black transition-colors disabled:opacity-50"
-                  >
-                    {syncing === 'jonas' ? 'Analysing...' : 'Analyse Prices'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
+        <p className="text-gray-400 text-sm">
+          Connect your accounting software so ShepherdSignals can automatically read your invoices and monitor pricing.
+        </p>
       </div>
 
-      <div className="card bg-amber-500/5 border-amber-500/10">
-        <h2 className="text-white font-semibold mb-4">How it works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {steps.map(s => (
-            <div key={s.step} className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-amber-400 text-xs font-bold">{s.step}</span>
+      <div className="space-y-3 mb-10">
+        {PROVIDERS.map(provider => (
+          <div key={provider.id} className="bg-white/[0.03] border border-white/8 rounded-2xl p-4 flex items-center gap-4">
+            <ProviderIcon provider={provider} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-medium text-white text-sm">{provider.name}</span>
+                {connected[provider.id] && (
+                  <span className="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">Connected</span>
+                )}
               </div>
-              <div>
-                <p className="text-white text-sm font-medium">{s.title}</p>
-                <p className="text-gray-500 text-xs mt-1 leading-relaxed">{s.desc}</p>
-              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">{provider.desc}</p>
+              {provider.id === 'jonas' && uploadMsg && (
+                <p className="text-xs text-amber-400 mt-1">{uploadMsg}</p>
+              )}
             </div>
-          ))}
+            <div className="shrink-0">
+              {connected[provider.id] ? (
+                <button className="text-xs text-gray-500 hover:text-red-400 transition-colors border border-white/10 px-3 py-1.5 rounded-lg">
+                  Disconnect
+                </button>
+              ) : provider.type === 'csv' ? (
+                <label className={`cursor-pointer bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {uploading ? 'Importing...' : 'Upload CSV'}
+                  <input type="file" accept=".csv" className="hidden" onChange={handleJonasUpload} disabled={uploading} />
+                </label>
+              ) : (
+                <button
+                  onClick={() => setActiveModal(provider)}
+                  className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
+                >
+                  Connect
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <h2 className="text-sm font-semibold text-white">Enterprise Integrations</h2>
+          <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">Add-on</span>
         </div>
+        <p className="text-xs text-gray-500">
+          For larger club groups, resorts, and multi-property operations. Contact us to enable.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {ENTERPRISE_PROVIDERS.map(provider => (
+          <div key={provider.id} className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center gap-4 opacity-75">
+            <ProviderIcon provider={provider} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-medium text-gray-300 text-sm">{provider.name}</span>
+                <span className="text-xs bg-white/5 text-gray-500 border border-white/10 px-2 py-0.5 rounded-full">Enterprise</span>
+              </div>
+              <p className="text-xs text-gray-600 leading-relaxed">{provider.desc}</p>
+            </div>
+            <div className="shrink-0">
+              <a
+                href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Inquiry"
+                className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-4 py-2 rounded-xl transition-colors"
+              >
+                Contact Us
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400 mb-1">How It Works</h3>
+        <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
+          <li>Click Connect and sign in to your accounting software</li>
+          <li>Authorize ShepherdSignals to read your invoices and vendor data</li>
+          <li>Your purchase history syncs automatically to your dashboard</li>
+          <li>ShepherdSignals monitors every invoice and alerts you to price spikes</li>
+        </ol>
       </div>
     </div>
   )
