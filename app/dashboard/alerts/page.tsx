@@ -29,13 +29,13 @@ export default async function AlertsPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Price Alerts</h1>
-        <p className="text-gray-400 mt-1">Real-time price change notifications from your vendors</p>
+        <p className="text-gray-400 mt-1">Price change notifications from your vendors</p>
       </div>
 
       {unread.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-orange-400 uppercase tracking-wide mb-3">
-            New — {unread.length} unread
+            New - {unread.length} unread
           </h2>
           <div className="space-y-2">
             {unread.map((alert: any) => <AlertRow key={alert.id} alert={alert} isNew />)}
@@ -43,23 +43,23 @@ export default async function AlertsPage() {
         </section>
       )}
 
-      <section>
-        {read.length > 0 && (
-          <>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Earlier</h2>
-            <div className="space-y-2">
-              {read.map((alert: any) => <AlertRow key={alert.id} alert={alert} />)}
-            </div>
-          </>
-        )}
-        {alerts?.length === 0 && (
-          <div className="card text-center py-16">
-            <div className="text-5xl mb-4">🔔</div>
-            <p className="text-white font-medium">No alerts yet</p>
-            <p className="text-gray-500 text-sm mt-2">Alerts will appear here when we detect price changes from your vendors</p>
+      {read.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Earlier</h2>
+          <div className="space-y-2">
+            {read.map((alert: any) => <AlertRow key={alert.id} alert={alert} />)}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {(!alerts || alerts.length === 0) && (
+        <div className="card text-center py-16">
+          <p className="text-white font-medium">No alerts yet</p>
+          <p className="text-gray-500 text-sm mt-2 max-w-sm mx-auto">
+            Alerts will appear here when Shepherd detects price changes across your invoices
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -68,14 +68,14 @@ function AlertRow({ alert, isNew }: { alert: any; isNew?: boolean }) {
   const isUp = alert.change_direction === 'up'
   return (
     <div className={`flex items-start gap-4 p-4 rounded-xl border transition-colors ${isNew ? 'bg-white/5 border-white/10' : 'border-transparent hover:bg-white/3'}`}>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isUp ? 'bg-red-500/15' : 'bg-green-500/15'}`}>
-        <span className="text-lg">{isUp ? '📈' : '📉'}</span>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${isUp ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
+        {isUp ? '+' : '-'}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-white text-sm font-medium">
-              {alert.products?.name ?? 'Product'} 
+              {alert.products?.name ?? 'Product'}
               <span className="text-gray-500 font-normal"> via </span>
               {alert.vendors?.name ?? 'Vendor'}
             </p>
@@ -91,9 +91,8 @@ function AlertRow({ alert, isNew }: { alert: any; isNew?: boolean }) {
         {(alert.old_price || alert.new_price) && (
           <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
             <span>Was: <strong className="text-gray-400">${alert.old_price?.toFixed(2)}</strong></span>
-            <span>→</span>
+            <span>-></span>
             <span>Now: <strong className={isUp ? 'text-red-400' : 'text-green-400'}>${alert.new_price?.toFixed(2)}</strong></span>
-            {alert.unit && <span className="text-gray-600">/ {alert.unit}</span>}
           </div>
         )}
       </div>
