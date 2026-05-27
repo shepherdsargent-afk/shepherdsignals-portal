@@ -12,7 +12,7 @@ export default function InvoicesPage() {
   const [error, setError] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [fileRef, setFileRef] = useState<HTMLInputElement | null>(null)
+  const [companyId, setCompanyId] = useState<string | null>(null)
   const supabase = createClient()
 
   async function loadInvoices() {
@@ -20,6 +20,7 @@ export default function InvoicesPage() {
     if (!user) return
     const { data: cu } = await supabase.from('company_users').select('company_id').eq('user_id', user.id).single()
     if (!cu) return
+    setCompanyId(cu.company_id)
     const { data } = await supabase
       .from('invoices')
       .select('*, vendors(name)')
@@ -76,7 +77,6 @@ export default function InvoicesPage() {
     setLoaded(false)
     loadInvoices()
 
-    // Trigger Gemini processing
     const sessionRes = await supabase.auth.getSession()
     const token = sessionRes.data.session?.access_token
     if (token) {
@@ -85,9 +85,26 @@ export default function InvoicesPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ invoiceId: insertedInvoice.id }),
       })
-        .then(() => setTimeout(() => loadInvoices(), 5000))
+        .then(() => setTimeout(() => loadInvoices(), 8000))
         .catch(() => {})
     }
+  }
+
+  async function handleDelete(inv: any) {
+    if (!confirm('Remove this invoice?')) return
+
+    // Delete from storage
+    if (inv.file_url) {
+      const pathMatch = inv.file_url.match(/\/object\/(?:public|sign)\/invoices\/(.+)/)
+      if (pathMatch) {
+        const filePath = decodeURIComponent(pathMatch[1])
+        await supabase.storage.from('invoices').remove([filePath])
+      }
+    }
+
+    // Delete from DB
+    await supabase.from('invoices').delete().eq('id', inv.id)
+    setInvoices(prev => prev.filter(i => i.id !== inv.id))
   }
 
   const statusColor: Record<string, string> = {
@@ -128,7 +145,7 @@ export default function InvoicesPage() {
         {invoices.length > 0 ? (
           <div className="space-y-2">
             {invoices.map((inv: any) => (
-              <div key={inv.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors">
+              <div key={inv.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-brand-mid/40 flex items-center justify-center shrink-0">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -141,7 +158,7 @@ export default function InvoicesPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">
                     {inv.invoice_number ? `Invoice #${inv.invoice_number}` : 'Invoice'}
-                    {inv.vendors?.name && <span className="text-gray-500 font-normal"> â€” {inv.vendors.name}</span>}
+                    {inv.vendors?.name && <span className="text-gray-500 font-normal"> - {inv.vendors.name}</span>}
                   </p>
                   <p className="text-gray-600 text-xs">{format(new Date(inv.created_at), 'MMM d, yyyy h:mm a')}</p>
                 </div>
@@ -156,6 +173,16 @@ export default function InvoicesPage() {
                     View
                   </a>
                 )}
+                <button
+                  onClick={() => handleDelete(inv)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 shrink-0 p-1 rounded"
+                  title="Remove invoice"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
               </div>
             ))}
           </div>
