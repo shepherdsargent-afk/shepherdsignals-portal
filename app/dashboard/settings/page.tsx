@@ -9,6 +9,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [plan, setPlan] = useState('weekly')
+  const [dailyEnabled, setDailyEnabled] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -22,8 +23,10 @@ export default function SettingsPage() {
         .eq('user_id', user.id)
         .single()
       if (cu?.companies) {
-        setCompany(cu.companies)
-        setPlan((cu.companies as any).plan ?? 'weekly')
+        const c = cu.companies as any
+        setCompany(c)
+        setPlan(c.plan ?? 'weekly')
+        setDailyEnabled(c.daily_signals_enabled ?? false)
       }
     }
     load()
@@ -37,6 +40,27 @@ export default function SettingsPage() {
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
+
+  const options = [
+    {
+      value: 'weekly',
+      label: 'Weekly Audit',
+      desc: 'Full weekly audit every Monday â€” trends, comparisons, and savings opportunities',
+      paid: false,
+    },
+    {
+      value: 'daily',
+      label: 'Daily Signals',
+      desc: 'Price change summary every morning with notable movements from your vendors',
+      paid: true,
+    },
+    {
+      value: 'both',
+      label: 'Daily + Weekly',
+      desc: 'Daily signals plus the full weekly audit â€” stay on top of everything',
+      paid: true,
+    },
+  ]
 
   return (
     <div className="p-8">
@@ -52,7 +76,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-gray-500 uppercase tracking-wide">Email</label>
-              <p className="text-white mt-0.5">{user?.email ?? '—'}</p>
+              <p className="text-white mt-0.5">{user?.email ?? 'â€”'}</p>
             </div>
             {company && (
               <>
@@ -74,32 +98,58 @@ export default function SettingsPage() {
           <h2 className="text-white font-semibold mb-1">Email Notifications</h2>
           <p className="text-gray-500 text-sm mb-5">Choose how often you receive price intelligence emails</p>
           <div className="space-y-3">
-            {[
-              { value: 'daily', label: 'Daily Signals', desc: 'Get a price change summary every morning with notable movements from your vendors' },
-              { value: 'weekly', label: 'Weekly Audit', desc: 'Receive a full weekly audit every Monday with trends, comparisons, and savings opportunities' },
-              { value: 'both', label: 'Both', desc: 'Daily signals + the full weekly audit — stay on top of everything' },
-            ].map(option => (
-              <label key={option.value} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${plan === option.value ? 'border-brand-light/40 bg-brand-mid/20' : 'border-white/5 hover:border-white/10'}`}>
-                <input
-                  type="radio"
-                  name="plan"
-                  value={option.value}
-                  checked={plan === option.value}
-                  onChange={() => setPlan(option.value)}
-                  className="mt-1 accent-green-400"
-                />
-                <div>
-                  <p className="text-white font-medium">{option.label}</p>
-                  <p className="text-gray-400 text-sm mt-0.5">{option.desc}</p>
-                </div>
-              </label>
-            ))}
+            {options.map(option => {
+              const locked = option.paid && !dailyEnabled
+              const selected = plan === option.value
+              return (
+                <label
+                  key={option.value}
+                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${
+                    locked
+                      ? 'border-white/5 opacity-60 cursor-not-allowed'
+                      : selected
+                      ? 'border-brand-light/40 bg-brand-mid/20 cursor-pointer'
+                      : 'border-white/5 hover:border-white/10 cursor-pointer'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="plan"
+                    value={option.value}
+                    checked={selected}
+                    disabled={locked}
+                    onChange={() => !locked && setPlan(option.value)}
+                    className="mt-1 accent-green-400"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-medium">{option.label}</p>
+                      {option.paid && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${dailyEnabled ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
+                          {dailyEnabled ? 'Active' : '$199/mo add-on'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm mt-0.5">{option.desc}</p>
+                    {locked && (
+                      <p className="text-yellow-400/80 text-xs mt-1.5">
+                        Contact{' '}
+                        <a href="mailto:shepherdsargent@shepherdsignals.com" className="underline hover:text-yellow-300">
+                          shepherdsargent@shepherdsignals.com
+                        </a>{' '}
+                        to add Daily Signals for $199/mo
+                      </p>
+                    )}
+                  </div>
+                </label>
+              )
+            })}
           </div>
           <div className="flex items-center gap-3 mt-5">
             <button onClick={handleSavePlan} disabled={saving} className="btn-primary px-6 py-2.5 disabled:opacity-50">
               {saving ? 'Saving...' : 'Save Preference'}
             </button>
-            {saved && <p className="text-green-400 text-sm">✅ Saved</p>}
+            {saved && <p className="text-green-400 text-sm">Saved</p>}
           </div>
         </div>
 
