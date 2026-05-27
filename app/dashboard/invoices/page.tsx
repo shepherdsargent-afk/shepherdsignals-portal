@@ -11,8 +11,6 @@ export default function InvoicesPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [companyId, setCompanyId] = useState<string | null>(null)
   const supabase = createClient()
 
   async function loadInvoices() {
@@ -20,19 +18,15 @@ export default function InvoicesPage() {
     if (!user) return
     const { data: cu } = await supabase.from('company_users').select('company_id').eq('user_id', user.id).single()
     if (!cu) return
-    setCompanyId(cu.company_id)
     const { data } = await supabase
       .from('invoices')
       .select('*, vendors(name)')
       .eq('company_id', cu.company_id)
       .order('created_at', { ascending: false })
     setInvoices(data ?? [])
-    setLoaded(true)
   }
 
-  useEffect(() => {
-    loadInvoices()
-  }, [])
+  useEffect(() => { loadInvoices() }, [])
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
@@ -51,30 +45,21 @@ export default function InvoicesPage() {
     if (!cu) { setError('No company found'); setUploading(false); return }
 
     const fileName = `${cu.company_id}/${Date.now()}-${file.name}`
-    const { error: uploadError } = await supabase.storage
-      .from('invoices')
-      .upload(fileName, file, { contentType: file.type })
-
+    const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file, { contentType: file.type })
     if (uploadError) { setError(uploadError.message); setUploading(false); return }
 
     const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(fileName)
 
-    const { data: insertedInvoice, error: dbError } = await supabase
+    const { data: inserted, error: dbError } = await supabase
       .from('invoices')
       .insert({ company_id: cu.company_id, file_url: urlData.publicUrl, status: 'pending' })
-      .select('id')
-      .single()
+      .select('id').single()
 
-    if (dbError || !insertedInvoice) {
-      setError(dbError?.message ?? 'Failed to save invoice')
-      setUploading(false)
-      return
-    }
+    if (dbError || !inserted) { setError(dbError?.message ?? 'Failed to save'); setUploading(false); return }
 
     if (input) input.value = ''
     setSuccess(true)
     setUploading(false)
-    setLoaded(false)
     loadInvoices()
 
     const sessionRes = await supabase.auth.getSession()
@@ -83,26 +68,17 @@ export default function InvoicesPage() {
       fetch(`${EDGE_BASE}/process-invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ invoiceId: insertedInvoice.id }),
-      })
-        .then(() => setTimeout(() => loadInvoices(), 8000))
-        .catch(() => {})
+        body: JSON.stringify({ invoiceId: inserted.id }),
+      }).then(() => setTimeout(() => loadInvoices(), 8000)).catch(() => {})
     }
   }
 
   async function handleDelete(inv: any) {
     if (!confirm('Remove this invoice?')) return
-
-    // Delete from storage
     if (inv.file_url) {
-      const pathMatch = inv.file_url.match(/\/object\/(?:public|sign)\/invoices\/(.+)/)
-      if (pathMatch) {
-        const filePath = decodeURIComponent(pathMatch[1])
-        await supabase.storage.from('invoices').remove([filePath])
-      }
+      const match = inv.file_url.match(/\/object\/(?:public|sign)\/invoices\/(.+)/)
+      if (match) await supabase.storage.from('invoices').remove([decodeURIComponent(match[1])])
     }
-
-    // Delete from DB
     await supabase.from('invoices').delete().eq('id', inv.id)
     setInvoices(prev => prev.filter(i => i.id !== inv.id))
   }
@@ -117,7 +93,7 @@ export default function InvoicesPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Invoices</h1>
-        <p className="text-gray-400 mt-1">Upload invoices so Shepherd can extract pricing data</p>
+        <p className="text-gray-400 mt-1">Upload invoices so ShepherdSignals can extract pricing data</p>
       </div>
 
       <div className="card mb-6">
@@ -136,7 +112,7 @@ export default function InvoicesPage() {
             {uploading ? 'Uploading...' : 'Upload'}
           </button>
         </form>
-        {success && <p className="text-green-400 text-sm mt-3">Invoice uploaded - Shepherd is processing it now</p>}
+        {success && <p className="text-green-400 text-sm mt-3">Invoice uploaded - ShepherdSignals is processing it now</p>}
         {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
       </div>
 
@@ -152,7 +128,6 @@ export default function InvoicesPage() {
                     <polyline points="14 2 14 8 20 8"/>
                     <line x1="16" y1="13" x2="8" y2="13"/>
                     <line x1="16" y1="17" x2="8" y2="17"/>
-                    <polyline points="10 9 9 9 8 9"/>
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -162,25 +137,20 @@ export default function InvoicesPage() {
                   </p>
                   <p className="text-gray-600 text-xs">{format(new Date(inv.created_at), 'MMM d, yyyy h:mm a')}</p>
                 </div>
-                {inv.total_amount && (
-                  <p className="text-white font-medium">${Number(inv.total_amount).toFixed(2)}</p>
-                )}
+                {inv.total_amount && <p className="text-white font-medium">${Number(inv.total_amount).toFixed(2)}</p>}
                 <span className={`text-xs px-2 py-1 rounded-full capitalize ${statusColor[inv.status] ?? ''}`}>
                   {inv.status}
                 </span>
                 {inv.file_url && (
-                  <a href={inv.file_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white text-xs shrink-0">
-                    View
-                  </a>
+                  <a href={inv.file_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white text-xs shrink-0">View</a>
                 )}
                 <button
                   onClick={() => handleDelete(inv)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 shrink-0 p-1 rounded"
-                  title="Remove invoice"
+                  title="Remove"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
               </div>
