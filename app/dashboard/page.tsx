@@ -124,7 +124,7 @@ export default async function DashboardPage() {
                     <p className="text-white text-sm font-medium truncate">{alert.item_description}</p>
                     <p className="text-gray-500 text-xs mt-0.5">
                       {alert.alert_type === 'better_price_available'
-                        ? `${alert.savings_pct?.toFixed(0) ?? '?'}% above market â€” check ${alert.suggested_vendor ?? 'alternatives'}`
+                        ? `${alert.savings_pct?.toFixed(0) ?? '?'}% above market - check ${alert.suggested_vendor ?? 'alternatives'}`
                         : alert.alert_type === 'good_price' ? 'Below market rate'
                         : 'At market rate'}
                     </p>
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="text-center py-10 text-gray-500">
-              <p className="text-sm">No alerts yet â€” upload an invoice to get started</p>
+              <p className="text-sm">No alerts yet &mdash; upload an invoice to get started</p>
               <a href="/dashboard/invoices" className="text-brand-light text-sm hover:underline mt-2 inline-block">Upload invoice</a>
             </div>
           )}
