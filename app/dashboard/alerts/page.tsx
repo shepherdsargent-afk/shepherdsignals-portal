@@ -45,7 +45,7 @@ export default function AlertsPage() {
 
       {loading && (
         <div className="card text-center py-16">
-          <p className="text-gray-500">Loading price intelligence...</p>
+          <p className="text-gray-500 text-sm">Loading price intelligence...</p>
         </div>
       )}
 
@@ -53,14 +53,14 @@ export default function AlertsPage() {
         <div className="card text-center py-16">
           <p className="text-white font-medium">No alerts yet</p>
           <p className="text-gray-500 text-sm mt-2">Upload an invoice and ShepherdSignals will search current market prices and alert you to any savings opportunities</p>
-          <a href="/dashboard/invoices" className="btn-primary inline-block mt-4 px-6 py-2">Upload Invoice</a>
+          <a href="/dashboard/invoices" className="btn-primary inline-block mt-4 px-6 py-2 text-sm">Upload Invoice</a>
         </div>
       )}
 
       {overpriced.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3">
-            Savings Opportunities â€” {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
+            Savings Opportunities &mdash; {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
           </h2>
           <div className="space-y-3">
             {overpriced.map((alert: any) => (
@@ -73,7 +73,7 @@ export default function AlertsPage() {
       {market.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
-            At Market Rate â€” {market.length} item{market.length > 1 ? 's' : ''}
+            At Market Rate &mdash; {market.length} item{market.length > 1 ? 's' : ''}
           </h2>
           <div className="space-y-3">
             {market.map((alert: any) => (
@@ -86,7 +86,7 @@ export default function AlertsPage() {
       {good.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-green-400 uppercase tracking-wide mb-3">
-            Good Prices â€” {good.length} item{good.length > 1 ? 's' : ''} below market
+            Good Prices &mdash; {good.length} item{good.length > 1 ? 's' : ''} below market
           </h2>
           <div className="space-y-3">
             {good.map((alert: any) => (
@@ -102,68 +102,84 @@ export default function AlertsPage() {
 function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) => void }) {
   const isOverpriced = alert.alert_type === 'better_price_available'
   const isGood = alert.alert_type === 'good_price'
-  const savingsPct = Math.abs(alert.savings_pct ?? 0)
+  const savingsPct = Math.abs(Number(alert.savings_pct ?? 0))
+  const yourPrice = Number(alert.your_unit_price ?? 0)
+  const marketPrice = Number(alert.market_unit_price ?? 0)
+  const savingsPerUnit = Math.abs(Number(alert.savings_per_unit ?? (yourPrice - marketPrice)))
 
   return (
     <div className="card group relative">
       <div className="flex items-start gap-4">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg font-bold ${
-          isOverpriced ? 'bg-red-500/15 text-red-400' : isGood ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'
-        }`}>
-          {isOverpriced ? '-' : isGood ? '+' : '~'}
-        </div>
+        <div className={`w-1 self-stretch rounded-full shrink-0 ${
+          isOverpriced ? 'bg-red-500' : isGood ? 'bg-green-500' : 'bg-yellow-500'
+        }`} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-white font-semibold">{alert.item_description}</p>
+              <p className="text-white font-semibold text-base">{alert.item_description}</p>
               {alert.category && (
                 <span className="text-xs bg-white/5 text-gray-500 px-2 py-0.5 rounded capitalize mt-1 inline-block">{alert.category}</span>
               )}
             </div>
             <div className="text-right shrink-0">
-              <span className={`text-xl font-bold ${isOverpriced ? 'text-red-400' : isGood ? 'text-green-400' : 'text-yellow-400'}`}>
+              <p className={`text-2xl font-bold tabular-nums ${isOverpriced ? 'text-red-400' : isGood ? 'text-green-400' : 'text-yellow-400'}`}>
                 {isOverpriced ? '-' : isGood ? '+' : ''}{savingsPct.toFixed(0)}%
-              </span>
-              <p className="text-gray-600 text-xs mt-0.5">{format(new Date(alert.created_at), 'MMM d, yyyy')}</p>
+              </p>
+              <p className="text-gray-600 text-xs">{format(new Date(alert.created_at), 'MMM d, yyyy')}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 mt-3 text-sm">
+          <div className="flex items-center gap-6 mt-3 flex-wrap">
             <div>
               <p className="text-gray-500 text-xs mb-0.5">You paid</p>
-              <p className="text-white font-medium">${Number(alert.your_unit_price).toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span></p>
+              <p className="text-white font-semibold text-base tabular-nums">${yourPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span></p>
             </div>
-            <div className="text-gray-600">vs</div>
+            <div className="text-gray-600 text-sm">vs</div>
             <div>
               <p className="text-gray-500 text-xs mb-0.5">Market rate</p>
-              <p className={`font-medium ${isOverpriced ? 'text-green-400' : isGood ? 'text-red-400' : 'text-yellow-400'}`}>
-                ${Number(alert.market_unit_price).toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span>
+              <p className={`font-semibold text-base tabular-nums ${isOverpriced ? 'text-green-400' : isGood ? 'text-red-400' : 'text-yellow-400'}`}>
+                ${marketPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span>
               </p>
             </div>
-            {alert.savings_per_unit && Math.abs(alert.savings_per_unit) > 0.01 && (
+            {savingsPerUnit > 0.01 && (
               <div>
                 <p className="text-gray-500 text-xs mb-0.5">{isOverpriced ? 'Could save' : 'Saving'}</p>
-                <p className={`font-medium ${isOverpriced ? 'text-red-400' : 'text-green-400'}`}>
-                  ${Math.abs(alert.savings_per_unit).toFixed(2)}/unit
+                <p className={`font-semibold text-base tabular-nums ${isOverpriced ? 'text-red-400' : 'text-green-400'}`}>
+                  ${savingsPerUnit.toFixed(2)}/unit
                 </p>
               </div>
             )}
           </div>
 
           {alert.suggested_vendor && (
-            <p className="text-gray-500 text-sm mt-2">
-              {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-brand-light">{alert.suggested_vendor}</span>
-              {alert.market_source && alert.market_source !== alert.suggested_vendor && (
-                <span className="text-gray-600"> via {alert.market_source}</span>
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <p className="text-gray-400 text-sm">
+                {isOverpriced ? 'Better price at:' : 'Found at:'} <span className="text-white font-medium">{alert.suggested_vendor}</span>
+                {alert.market_source && alert.market_source !== alert.suggested_vendor && (
+                  <span className="text-gray-600 text-xs"> via {alert.market_source}</span>
+                )}
+              </p>
+              {alert.vendor_website && (
+                <a
+                  href={alert.vendor_website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-mid/40 text-brand-light hover:bg-brand-mid/60 transition-colors font-medium"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  Visit supplier
+                </a>
               )}
-            </p>
+            </div>
           )}
         </div>
 
         <button
           onClick={() => onDismiss(alert.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-gray-400 shrink-0 p-1 rounded"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-gray-400 shrink-0 p-1 rounded mt-0.5"
           title="Dismiss"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
