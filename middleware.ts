@@ -1,16 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const SUPABASE_URL = 'https://lmrgzsfvzzdoatpddjvb.supabase.co'
+const SUPABASE_ANON_KEY = 'sb_publishable_FMvUe_M8D-jNTKtpbX6kZQ_Kci692JO'
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAll(cookiesToSet: { name: string; value: string; options: any }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
@@ -27,7 +29,6 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
   const isAdmin = request.nextUrl.pathname.startsWith('/admin')
-  const isApi = request.nextUrl.pathname.startsWith('/api')
 
   if (!user && (isDashboard || isAdmin)) {
     return NextResponse.redirect(new URL('/login', request.url))
