@@ -1,3 +1,4 @@
+// redeployed 2026-05-28 11:24
 // redeployed 2026-05-28 09:56
 /** @type {import('next').NextConfig} */
 const nextConfig = {
