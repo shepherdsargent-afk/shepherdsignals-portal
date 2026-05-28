@@ -1,132 +1,145 @@
+'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 
 const PLANS = [
   {
-    id: 'weekly',
-    name: 'Weekly Digest',
-    price: 199,
+    id: 'monthly',
+    name: 'Monthly',
+    price: 649,
     period: 'month',
-    description: 'Perfect for clubs that want a regular procurement health check.',
+    annualNote: null,
+    description: 'Full procurement intelligence, billed monthly. Cancel anytime.',
     features: [
-      'Weekly price spike summary',
-      'Top 10 overcharges identified',
-      'Market benchmark comparisons',
-      'Vendor alternative suggestions',
-      'Email digest every Monday',
+      'All vendor categories monitored',
+      '24-hour price spike alerts',
+      'Daily 6am procurement brief',
+      'Verified cheaper alternatives',
+      'Portal access & reporting dashboard',
+      'Onboarding invoice audit',
     ],
     highlight: false,
     badge: null,
   },
   {
-    id: 'both',
-    name: 'Full Monitoring',
-    price: 449,
+    id: 'annual',
+    name: 'Annual',
+    price: 549,
     period: 'month',
-    description: 'Complete procurement intelligence. Daily alerts + weekly digest.',
+    annualNote: '$6,588 billed annually',
+    description: 'Everything in Monthly, plus dedicated support and quarterly reviews.',
     features: [
-      'Everything in Daily + Weekly',
-      'Same-day price spike alerts',
-      'Weekly procurement digest',
+      'Everything in Monthly',
+      'Priority override response',
+      'Quarterly procurement review call',
+      'Vendor negotiation support',
       'Accounting software integrations',
-      'Invoice PDF processing',
-      'Priority email support',
+      'Early access to new features',
     ],
     highlight: true,
-    badge: 'Most Popular',
-  },
-  {
-    id: 'daily',
-    name: 'Daily Alerts',
-    price: 299,
-    period: 'month',
-    description: 'Real-time alerts the moment a supplier overcharges you.',
-    features: [
-      'Price spike alerts within 24 hrs',
-      'Invoice line-item monitoring',
-      'Verified cheaper alternatives',
-      'Vendor comparison reports',
-      'Email + portal dashboard',
-    ],
-    highlight: false,
-    badge: null,
+    badge: 'Most popular Â· Best value',
   },
 ]
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState<string | null>(null)
+
+  async function handleCheckout(planId: string) {
+    setLoading(planId)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert('Something went wrong. Please try again.')
+        setLoading(null)
+      }
+    } catch {
+      alert('Something went wrong. Please try again.')
+      setLoading(null)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[#0a0a1a] text-white">
-      <div className="max-w-5xl mx-auto px-6 py-20">
-        <div className="text-center mb-14">
-          <div className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold px-3 py-1 rounded-full mb-4">
-            SHEPHERDSIGNALS
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-3">
-            Simple, transparent pricing
-          </h1>
-          <p className="text-gray-400 text-lg max-w-xl mx-auto">
-            Cancel anytime. No setup fees. Most clubs recover the cost in the first month.
+    <main className="min-h-screen bg-[#0a1628] text-white py-20 px-4">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <Link href="/" className="text-sm text-slate-400 hover:text-white mb-6 inline-block">
+            â† Back to home
+          </Link>
+          <h1 className="text-4xl font-bold mb-4">Simple, transparent pricing</h1>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">
+            Procurement intelligence built for golf clubs. Save in the first month or we&apos;ll refund you.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
-          {PLANS.map(plan => (
+        {/* Plans */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+          {PLANS.map((plan) => (
             <div
               key={plan.id}
-              className={`relative rounded-2xl border p-6 flex flex-col ${
+              className={`relative rounded-2xl border p-8 flex flex-col ${
                 plan.highlight
-                  ? 'bg-amber-500/5 border-amber-500/40'
-                  : 'bg-white/[0.03] border-white/10'
+                  ? 'border-emerald-500 bg-emerald-950/30 shadow-lg shadow-emerald-900/30'
+                  : 'border-slate-700 bg-slate-900/50'
               }`}
             >
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-amber-500 text-black text-xs font-bold px-3 py-1 rounded-full">
+                  <span className="bg-emerald-500 text-white text-xs font-semibold px-4 py-1 rounded-full whitespace-nowrap">
                     {plan.badge}
                   </span>
                 </div>
               )}
-              <div className="mb-5">
-                <h2 className="text-lg font-bold text-white mb-1">{plan.name}</h2>
-                <p className="text-gray-500 text-sm">{plan.description}</p>
-              </div>
+
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">${plan.price}</span>
-                <span className="text-gray-500 text-sm ml-1">/{plan.period}</span>
+                <h2 className="text-xl font-bold mb-2">{plan.name}</h2>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-bold">${plan.price}</span>
+                  <span className="text-slate-400 mb-1">/ month</span>
+                </div>
+                {plan.annualNote && (
+                  <p className="text-slate-400 text-sm">{plan.annualNote}</p>
+                )}
+                <p className="text-slate-400 text-sm mt-3">{plan.description}</p>
               </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {plan.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                    <span className="text-amber-400 mt-0.5 shrink-0">+</span>
-                    {f}
+
+              <ul className="space-y-3 mb-8 flex-1">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <span className="text-emerald-400 mt-0.5 shrink-0">âœ“</span>
+                    <span className="text-slate-300">{f}</span>
                   </li>
                 ))}
               </ul>
-              <form action="/api/stripe/checkout" method="POST">
-                <input type="hidden" name="plan" value={plan.id} />
-                <button
-                  type="submit"
-                  className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
-                    plan.highlight
-                      ? 'bg-amber-500 hover:bg-amber-400 text-black'
-                      : 'bg-white/10 hover:bg-white/20 text-white'
-                  }`}
-                >
-                  Get Started
-                </button>
-              </form>
+
+              <button
+                onClick={() => handleCheckout(plan.id)}
+                disabled={loading !== null}
+                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
+                  plan.highlight
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-60'
+                    : 'bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-60'
+                }`}
+              >
+                {loading === plan.id ? 'Redirectingâ€¦' : 'Get started'}
+              </button>
             </div>
           ))}
         </div>
 
-        <div className="text-center">
-          <p className="text-gray-600 text-sm mb-2">
-            Test mode active â€” use card <span className="font-mono text-gray-400">4242 4242 4242 4242</span>, any future date, any CVC
-          </p>
-          <p className="text-gray-700 text-xs">
-            Questions? <a href="mailto:shepherdsargent@shepherdsignals.com" className="text-amber-400 hover:underline">shepherdsargent@shepherdsignals.com</a>
-          </p>
+        {/* Trust footer */}
+        <div className="text-center mt-14 text-slate-500 text-sm space-y-2">
+          <p>All prices in CAD. Cancel monthly plans anytime.</p>
+          <p>Questions? <a href="mailto:hello@shepherdsignals.com" className="text-emerald-400 hover:underline">hello@shepherdsignals.com</a></p>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
