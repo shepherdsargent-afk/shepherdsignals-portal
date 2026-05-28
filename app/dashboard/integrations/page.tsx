@@ -1,6 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const PROVIDERS = [
   {
@@ -13,6 +18,8 @@ const PROVIDERS = [
     iconColor: 'text-blue-400',
     type: 'csv',
     category: 'accounting',
+    loginUrl: '',
+    signupUrl: '',
   },
   {
     id: 'quickbooks',
@@ -72,7 +79,7 @@ const ENTERPRISE_PROVIDERS = [
   {
     id: 'netsuite',
     name: 'NetSuite',
-    desc: 'Enterprise ERP with full procurement module. Available on our Enterprise plan for larger club groups and resort properties.',
+    desc: 'Enterprise ERP with full procurement module. Available on our Enterprise plan.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=netsuite.com',
     short: 'NS',
     iconBg: 'bg-orange-500/10',
@@ -81,13 +88,15 @@ const ENTERPRISE_PROVIDERS = [
   {
     id: 'dynamics365',
     name: 'Dynamics 365',
-    desc: 'Microsoft enterprise ERP. Connect your Dynamics environment for full procurement data sync. Available on Enterprise plan.',
+    desc: 'Microsoft enterprise ERP. Connect your Dynamics environment for full procurement data sync.',
     logoUrl: 'https://www.google.com/s2/favicons?sz=128&domain=microsoft.com',
     short: 'D',
     iconBg: 'bg-blue-600/10',
     iconColor: 'text-blue-400',
   },
 ]
+
+type Provider = typeof PROVIDERS[0]
 
 function ProviderIcon({ provider }: { provider: { logoUrl: string; short: string; iconBg: string; iconColor: string; name: string } }) {
   const [failed, setFailed] = useState(false)
@@ -96,18 +105,13 @@ function ProviderIcon({ provider }: { provider: { logoUrl: string; short: string
       {failed ? (
         <span className={`${provider.iconColor} text-xs font-bold`}>{provider.short}</span>
       ) : (
-        <img
-          src={provider.logoUrl}
-          alt={provider.name}
-          className="w-full h-full object-contain"
-          onError={() => setFailed(true)}
-        />
+        <img src={provider.logoUrl} alt={provider.name} className="w-full h-full object-contain" onError={() => setFailed(true)} />
       )}
     </div>
   )
 }
 
-function ConnectModal({ provider, onClose }: { provider: typeof PROVIDERS[0]; onClose: () => void }) {
+function ConnectModal({ provider, onClose }: { provider: Provider; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
@@ -122,32 +126,19 @@ function ConnectModal({ provider, onClose }: { provider: typeof PROVIDERS[0]; on
           Sign in to your {provider.name} account to authorize ShepherdSignals to read your invoices and vendor data.
         </p>
         <div className="flex flex-col gap-2">
-          <a
-            href={provider.loginUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold py-2.5 rounded-xl text-sm text-center transition-colors"
-          >
+          <a href={provider.loginUrl} target="_blank" rel="noopener noreferrer"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold py-2.5 rounded-xl text-sm text-center transition-colors">
             Sign in to {provider.name}
           </a>
-          <a
-            href={provider.signupUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-white/5 hover:bg-white/10 text-gray-300 font-medium py-2.5 rounded-xl text-sm text-center transition-colors border border-white/10"
-          >
+          <a href={provider.signupUrl} target="_blank" rel="noopener noreferrer"
+            className="w-full bg-white/5 hover:bg-white/10 text-gray-300 font-medium py-2.5 rounded-xl text-sm text-center transition-colors border border-white/10">
             Create {provider.name} account
           </a>
-          <button
-            onClick={onClose}
-            className="w-full text-gray-500 hover:text-gray-300 text-sm py-2 transition-colors"
-          >
+          <button onClick={onClose} className="w-full text-gray-500 hover:text-gray-300 text-sm py-2 transition-colors">
             Cancel
           </button>
         </div>
-        <p className="text-xs text-gray-600 mt-4 text-center">
-          After signing in, return here and refresh to complete the connection.
-        </p>
+        <p className="text-xs text-gray-600 mt-4 text-center">After signing in, return here to complete the connection.</p>
       </div>
     </div>
   )
@@ -158,8 +149,7 @@ export default function IntegrationsPage() {
   const [connected, setConnected] = useState<Record<string, boolean>>({})
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
-  const [activeModal, setActiveModal] = useState<typeof PROVIDERS[0] | null>(null)
-  const supabase = createClientComponentClient()
+  const [activeModal, setActiveModal] = useState<Provider | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -177,7 +167,7 @@ export default function IntegrationsPage() {
       }
     }
     load()
-  }, [supabase])
+  }, [])
 
   async function handleJonasUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -215,15 +205,11 @@ export default function IntegrationsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      {activeModal && (
-        <ConnectModal provider={activeModal} onClose={() => setActiveModal(null)} />
-      )}
+      {activeModal && <ConnectModal provider={activeModal} onClose={() => setActiveModal(null)} />}
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
-        <p className="text-gray-400 text-sm">
-          Connect your accounting software so ShepherdSignals can automatically read your invoices and monitor pricing.
-        </p>
+        <p className="text-gray-400 text-sm">Connect your accounting software so ShepherdSignals can automatically read your invoices and monitor pricing.</p>
       </div>
 
       <div className="space-y-3 mb-10">
@@ -238,25 +224,19 @@ export default function IntegrationsPage() {
                 )}
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">{provider.desc}</p>
-              {provider.id === 'jonas' && uploadMsg && (
-                <p className="text-xs text-amber-400 mt-1">{uploadMsg}</p>
-              )}
+              {provider.id === 'jonas' && uploadMsg && <p className="text-xs text-amber-400 mt-1">{uploadMsg}</p>}
             </div>
             <div className="shrink-0">
               {connected[provider.id] ? (
-                <button className="text-xs text-gray-500 hover:text-red-400 transition-colors border border-white/10 px-3 py-1.5 rounded-lg">
-                  Disconnect
-                </button>
+                <button className="text-xs text-gray-500 hover:text-red-400 transition-colors border border-white/10 px-3 py-1.5 rounded-lg">Disconnect</button>
               ) : provider.type === 'csv' ? (
-                <label className={`cursor-pointer bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <label className={`cursor-pointer bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors ${uploading ? 'opacity-50' : ''}`}>
                   {uploading ? 'Importing...' : 'Upload CSV'}
                   <input type="file" accept=".csv" className="hidden" onChange={handleJonasUpload} disabled={uploading} />
                 </label>
               ) : (
-                <button
-                  onClick={() => setActiveModal(provider)}
-                  className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
-                >
+                <button onClick={() => setActiveModal(provider)}
+                  className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
                   Connect
                 </button>
               )}
@@ -270,9 +250,7 @@ export default function IntegrationsPage() {
           <h2 className="text-sm font-semibold text-white">Enterprise Integrations</h2>
           <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">Add-on</span>
         </div>
-        <p className="text-xs text-gray-500">
-          For larger club groups, resorts, and multi-property operations. Contact us to enable.
-        </p>
+        <p className="text-xs text-gray-500">For larger club groups, resorts, and multi-property operations. Contact us to enable.</p>
       </div>
 
       <div className="space-y-3">
@@ -287,10 +265,8 @@ export default function IntegrationsPage() {
               <p className="text-xs text-gray-600 leading-relaxed">{provider.desc}</p>
             </div>
             <div className="shrink-0">
-              <a
-                href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Inquiry"
-                className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-4 py-2 rounded-xl transition-colors"
-              >
+              <a href="mailto:shepherdsargent@shepherdsignals.com?subject=Enterprise Integration Inquiry"
+                className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-4 py-2 rounded-xl transition-colors">
                 Contact Us
               </a>
             </div>
