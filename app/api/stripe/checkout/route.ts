@@ -2,27 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2024-06-20',
 })
 
 const PLANS: Record<string, { name: string; amount: number; interval: 'month' | 'year' }> = {
-  monthly:       { name: 'ShepherdSignals Monthly',           amount: 64900,  interval: 'month' },
-  annual:        { name: 'ShepherdSignals Annual',            amount: 658800, interval: 'year'  },
-  'daily-addon': { name: 'ShepherdSignals Daily Alerts',      amount: 19900,  interval: 'month' },
+  monthly:       { name: 'ShepherdSignals Monthly',        amount: 64900,  interval: 'month' },
+  annual:        { name: 'ShepherdSignals Annual',         amount: 658800, interval: 'year'  },
+  'daily-addon': { name: 'ShepherdSignals Daily Alerts',   amount: 19900,  interval: 'month' },
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { plan, email } = body
-
+    const { plan, email } = await req.json()
     const cfg = PLANS[plan]
     if (!cfg) {
       return NextResponse.json({ error: 'Unknown plan: ' + plan }, { status: 400 })
     }
-
     const origin = req.headers.get('origin') ?? 'https://portal.shepherdsignals.com'
-
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -40,13 +36,9 @@ export async function POST(req: NextRequest) {
       cancel_url:  `${origin}/pricing`,
       metadata: { plan },
     })
-
     return NextResponse.json({ url: session.url })
   } catch (err: any) {
     console.error('[stripe/checkout]', err)
-    return NextResponse.json(
-      { error: err?.message ?? 'Checkout failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: err?.message ?? 'Checkout failed' }, { status: 500 })
   }
 }
