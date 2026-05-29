@@ -85,16 +85,16 @@ export default function SettingsPage() {
     : 'SS'
 
   return (
-    <div className="p-8 max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-gray-400 mt-1">Manage your account and company preferences</p>
+    <div className="p-4 sm:p-8 max-w-2xl">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Settings</h1>
+        <p className="text-gray-400 mt-1 text-sm">Manage your account and company preferences</p>
       </div>
 
-      {/* Upgrade to Daily Alerts - only shown if not already on daily */}
+      {/* Upgrade card â€” stacks on mobile */}
       {company && !hasDailyAlerts && (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
-          <div className="flex items-start justify-between gap-4">
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider mb-1">Available Upgrade</p>
               <h2 className="text-white font-semibold mb-1">Add Daily Alerts</h2>
@@ -104,7 +104,7 @@ export default function SettingsPage() {
             <button
               onClick={handleUpgradeDailyAlerts}
               disabled={upgrading}
-              className="shrink-0 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-sm rounded-lg transition-colors whitespace-nowrap"
+              className="w-full sm:w-auto shrink-0 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-sm rounded-lg transition-colors whitespace-nowrap"
             >
               {upgrading ? 'Redirecting...' : 'Add for $199/mo'}
             </button>
@@ -115,20 +115,20 @@ export default function SettingsPage() {
       {/* Company Logo */}
       <div className="card mb-6">
         <h2 className="text-white font-semibold mb-4">Company Logo</h2>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
           <div className="shrink-0">
             {company?.logo_url ? (
-              <img src={company.logo_url} alt={company?.name} className="w-20 h-20 rounded-xl object-cover border border-white/10" />
+              <img src={company.logo_url} alt={company?.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-white/10" />
             ) : (
-              <div className="w-20 h-20 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-                <span className="text-indigo-400 text-2xl font-bold">{initials}</span>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                <span className="text-indigo-400 text-xl sm:text-2xl font-bold">{initials}</span>
               </div>
             )}
           </div>
-          <div>
-            <p className="text-gray-300 text-sm mb-1">Your logo appears in the sidebar. Recommended: square image, min 200x200px.</p>
+          <div className="flex-1">
+            <p className="text-gray-300 text-sm mb-1">Recommended: square image, min 200x200px.</p>
             <p className="text-gray-600 text-xs mb-3">PNG, JPG, WebP or SVG - Max 2MB</p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${uploading ? 'bg-white/5 text-gray-500' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}>
                 {uploading ? (
                   <>
@@ -174,7 +174,7 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <div>
             <p className="text-gray-500 text-xs mb-1">Email</p>
-            <p className="text-gray-200 text-sm">{user?.email ?? '-'}</p>
+            <p className="text-gray-200 text-sm break-all">{user?.email ?? '-'}</p>
           </div>
           <div>
             <p className="text-gray-500 text-xs mb-1">Company</p>
@@ -197,23 +197,26 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-white font-semibold mb-4">Notifications</h2>
         <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-white/5">
-            <div>
+          <div className="flex items-start sm:items-center justify-between py-2 border-b border-white/5 gap-3">
+            <div className="flex-1 min-w-0">
               <p className="text-gray-200 text-sm font-medium">Weekly Digest</p>
-              <p className="text-gray-500 text-xs mt-0.5">Price alerts and market signals summary every Monday morning</p>
+              <p className="text-gray-500 text-xs mt-0.5">Price alerts and market signals every Monday morning</p>
             </div>
-            <span className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20">Active</span>
+            <span className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20 shrink-0">Active</span>
           </div>
-          <div className="flex items-center justify-between py-2">
-            <div>
+          <div className="flex items-start sm:items-center justify-between py-2 gap-3">
+            <div className="flex-1 min-w-0">
               <p className="text-gray-200 text-sm font-medium">Immediate Alerts</p>
-              <p className="text-gray-500 text-xs mt-0.5">Email the moment a new invoice is processed and savings are found</p>
+              <p className="text-gray-500 text-xs mt-0.5">Email the moment a new invoice is processed and savings found</p>
             </div>
             {hasDailyAlerts ? (
-              <span className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20">Active</span>
+              <span className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20 shrink-0">Active</span>
             ) : (
-              <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors" onClick={handleUpgradeDailyAlerts}>
-                Upgrade +$199
+              <span
+                className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20 shrink-0 cursor-pointer hover:bg-amber-500/20 transition-colors"
+                onClick={handleUpgradeDailyAlerts}
+              >
+                +$199/mo
               </span>
             )}
           </div>
