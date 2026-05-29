@@ -4,9 +4,9 @@ import Stripe from 'stripe'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' })
 
 const PLANS: Record<string, { name: string; amount: number; interval: 'month' | 'year' }> = {
-  monthly:       { name: 'ShepherdSignals - Monthly',              amount: 64900,  interval: 'month' },
-  annual:        { name: 'ShepherdSignals - Annual',               amount: 658800, interval: 'year'  },
-  'daily-addon': { name: 'ShepherdSignals - Daily Alerts Add-on',  amount: 19900,  interval: 'month' },
+  monthly:       { name: 'ShepherdSignals - Monthly',             amount: 64900,  interval: 'month' },
+  annual:        { name: 'ShepherdSignals - Annual',              amount: 658800, interval: 'year'  },
+  'daily-addon': { name: 'ShepherdSignals - Daily Alerts Add-on', amount: 19900,  interval: 'month' },
 }
 
 export async function POST(req: NextRequest) {
@@ -16,9 +16,7 @@ export async function POST(req: NextRequest) {
     if (!planConfig) {
       return NextResponse.json({ error: 'Invalid plan: ' + plan }, { status: 400 })
     }
-
     const origin = req.headers.get('origin') ?? 'https://portal.shepherdsignals.com'
-
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -36,7 +34,6 @@ export async function POST(req: NextRequest) {
       cancel_url:  `${origin}/pricing`,
       metadata: { plan },
     })
-
     return NextResponse.json({ url: session.url })
   } catch (err: any) {
     console.error('Stripe checkout error:', err)
