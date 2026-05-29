@@ -2,12 +2,17 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+const CHECK = () => (
+  <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="none">
+    <path d="M3 8l3.5 3.5L13 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
 const PLANS = [
   {
     id: 'monthly',
     name: 'Monthly',
     price: 649,
-    period: 'month',
     annualNote: null,
     description: 'Full procurement intelligence, billed monthly. Cancel anytime.',
     features: [
@@ -15,7 +20,7 @@ const PLANS = [
       '24-hour price spike alerts',
       'Daily 6am procurement brief',
       'Verified cheaper alternatives',
-      'Portal access & reporting dashboard',
+      'Portal access and reporting dashboard',
       'Onboarding invoice audit',
     ],
     highlight: false,
@@ -25,7 +30,6 @@ const PLANS = [
     id: 'annual',
     name: 'Annual',
     price: 549,
-    period: 'month',
     annualNote: '$6,588 billed annually',
     description: 'Everything in Monthly, plus dedicated support and quarterly reviews.',
     features: [
@@ -37,7 +41,7 @@ const PLANS = [
       'Early access to new features',
     ],
     highlight: true,
-    badge: 'Most popular Â· Best value',
+    badge: 'Most popular - Best value',
   },
 ]
 
@@ -68,18 +72,16 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-[#0a1628] text-white py-20 px-4">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-16">
           <Link href="/" className="text-sm text-slate-400 hover:text-white mb-6 inline-block">
-            â† Back to home
+            &larr; Back to home
           </Link>
           <h1 className="text-4xl font-bold mb-4">Simple, transparent pricing</h1>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">
-            Procurement intelligence built for golf clubs. Save in the first month or we&apos;ll refund you.
+            Procurement intelligence built for golf clubs. Two months, or your money back.
           </p>
         </div>
 
-        {/* Plans */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {PLANS.map((plan) => (
             <div
@@ -113,7 +115,7 @@ export default function PricingPage() {
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
-                    <span className="text-emerald-400 mt-0.5 shrink-0">âœ“</span>
+                    <CHECK />
                     <span className="text-slate-300">{f}</span>
                   </li>
                 ))}
@@ -128,15 +130,15 @@ export default function PricingPage() {
                     : 'bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-60'
                 }`}
               >
-                {loading === plan.id ? 'Redirectingâ€¦' : 'Get started'}
+                {loading === plan.id ? 'Redirecting...' : 'Get started'}
               </button>
             </div>
           ))}
         </div>
 
-        {/* Trust footer */}
         <div className="text-center mt-14 text-slate-500 text-sm space-y-2">
           <p>All prices in CAD. Cancel monthly plans anytime.</p>
+          <p>Two-month money-back guarantee. No questions asked.</p>
           <p>Questions? <a href="mailto:hello@shepherdsignals.com" className="text-emerald-400 hover:underline">hello@shepherdsignals.com</a></p>
         </div>
       </div>
