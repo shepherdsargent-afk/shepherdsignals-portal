@@ -3,12 +3,12 @@ import { redirect } from 'next/navigation'
 import { format } from 'date-fns'
 
 const mobileNav = [
-  { href: '/dashboard/alerts',       label: 'Price Alerts',   desc: 'Flagged overcharges',           color: 'from-red-500/20 to-red-500/5',     border: 'border-red-500/20',  icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
-  { href: '/dashboard/invoices',     label: 'Invoices',       desc: 'Processed invoice history',     color: 'from-blue-500/20 to-blue-500/5',    border: 'border-blue-500/20',  icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { href: '/dashboard/vendors',      label: 'Vendors',        desc: 'Suppliers and alternatives',    color: 'from-purple-500/20 to-purple-500/5', border: 'border-purple-500/20', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-  { href: '/dashboard/signals',      label: 'Market Signals', desc: 'Industry pricing intelligence', color: 'from-amber-500/20 to-amber-500/5',   border: 'border-amber-500/20',  icon: 'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0' },
-  { href: '/dashboard/integrations', label: 'Integrations',   desc: 'Connect accounting software',   color: 'from-green-500/20 to-green-500/5',   border: 'border-green-500/20',  icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
-  { href: '/dashboard/settings',     label: 'Settings',       desc: 'Account and plan',              color: 'from-gray-500/20 to-gray-500/5',     border: 'border-gray-500/20',   icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { href: '/dashboard/alerts',       label: 'Price Alerts',   desc: 'Flagged overcharges',           color: 'from-amber-500/20 to-amber-500/5',    border: 'border-amber-500/20',   icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
+  { href: '/dashboard/invoices',     label: 'Invoices',       desc: 'Processed invoice history',     color: 'from-emerald-500/20 to-emerald-500/5', border: 'border-emerald-500/20', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { href: '/dashboard/vendors',      label: 'Vendors',        desc: 'Suppliers and alternatives',    color: 'from-emerald-500/20 to-emerald-500/5', border: 'border-emerald-500/20', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  { href: '/dashboard/signals',      label: 'Market Signals', desc: 'Industry pricing intelligence', color: 'from-amber-500/20 to-amber-500/5',    border: 'border-amber-500/20',   icon: 'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0' },
+  { href: '/dashboard/integrations', label: 'Integrations',   desc: 'Connect accounting software',   color: 'from-emerald-500/20 to-emerald-500/5', border: 'border-emerald-500/20', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+  { href: '/dashboard/settings',     label: 'Settings',       desc: 'Account and plan',              color: 'from-amber-500/20 to-amber-500/5',    border: 'border-amber-500/20',   icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
 export default async function DashboardPage() {
@@ -47,14 +47,13 @@ export default async function DashboardPage() {
 
   return (
     <div>
-
       {/* â”€â”€ MOBILE: Section navigation tiles â”€â”€ */}
       <div className="md:hidden p-4">
         <div className="mb-5">
           <h1 className="text-lg font-bold text-white">{company?.name ?? 'Dashboard'}</h1>
           <p className="text-gray-500 text-sm">
             {savingsAlerts > 0 ? (
-              <span className="text-red-400">{savingsAlerts} alert{savingsAlerts !== 1 ? 's' : ''} need your attention</span>
+              <span className="text-amber-400">{savingsAlerts} alert{savingsAlerts !== 1 ? 's' : ''} need your attention</span>
             ) : 'Everything looks good'}
           </p>
         </div>
@@ -73,10 +72,8 @@ export default async function DashboardPage() {
               </div>
               <p className="text-white text-sm font-semibold leading-tight">{s.label}</p>
               <p className="text-white/50 text-xs mt-0.5 leading-tight">{s.desc}</p>
-
-              {/* Alert badge for price alerts */}
               {s.href === '/dashboard/alerts' && savingsAlerts > 0 && (
-                <span className="absolute top-3 right-3 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                <span className="absolute top-3 right-3 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-black text-[10px] font-bold">
                   {savingsAlerts}
                 </span>
               )}
@@ -99,9 +96,9 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-4 gap-4 mb-8">
           <StatCard label="Price Alerts"       value={activeAlerts}  sub={savingsAlerts > 0 ? `${savingsAlerts} savings opportunities` : 'All monitored'} urgent={savingsAlerts > 0} href="/dashboard/alerts"   icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>} />
-          <StatCard label="Vendors"            value={vendorCount}   sub="tracked suppliers"             href="/dashboard/vendors"  icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
-          <StatCard label="Market Signals"     value={signalCount}   sub="active intelligence"           href="/dashboard/signals"  icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>} />
-          <StatCard label="Invoices Processed" value={invoiceCount}  sub="analysed by ShepherdSignals"   href="/dashboard/invoices" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} />
+          <StatCard label="Vendors"            value={vendorCount}   sub="tracked suppliers"           href="/dashboard/vendors"  icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
+          <StatCard label="Market Signals"     value={signalCount}   sub="active intelligence"         href="/dashboard/signals"  icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>} />
+          <StatCard label="Invoices Processed" value={invoiceCount}  sub="analysed by ShepherdSignals" href="/dashboard/invoices" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} />
         </div>
 
         <div className="grid grid-cols-2 gap-6">
@@ -161,7 +158,6 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
-
     </div>
   )
 }
