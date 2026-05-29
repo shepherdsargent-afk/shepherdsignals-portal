@@ -85,7 +85,6 @@ export default function PricingPage() {
     <main className="min-h-screen bg-[#0a1628] text-white py-16 px-4">
       <div className="max-w-3xl mx-auto">
 
-        {/* Header */}
         <div className="text-center mb-12">
           <Link href="https://shepherdsignals.com" className="text-sm text-slate-400 hover:text-white mb-8 inline-block">
             &larr; Back to shepherdsignals.com
@@ -102,7 +101,6 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* Plan cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           {PLANS.map((plan) => (
             <div
@@ -120,7 +118,6 @@ export default function PricingPage() {
                   </span>
                 </div>
               )}
-
               <div className="mb-5">
                 <h2 className="text-xl font-bold mb-2">{plan.name}</h2>
                 <div className="flex items-end gap-1 mb-1">
@@ -130,7 +127,6 @@ export default function PricingPage() {
                 {plan.note && <p className="text-emerald-400 text-sm font-medium">{plan.note}</p>}
                 <p className="text-slate-400 text-sm mt-2">{plan.desc}</p>
               </div>
-
               <ul className="space-y-2.5 mb-6 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
@@ -139,7 +135,6 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-
               <button
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading !== null}
@@ -155,7 +150,6 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Add daily alerts */}
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -173,7 +167,6 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Footer note */}
         <div className="text-center text-slate-500 text-sm space-y-1.5">
           <p>All prices in CAD &middot; Secured by credit card &middot; Cancel monthly plans anytime</p>
           <p>Two-month money-back guarantee &mdash; no questions asked</p>
