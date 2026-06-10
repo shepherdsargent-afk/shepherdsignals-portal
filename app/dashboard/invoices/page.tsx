@@ -4,12 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 
-// Correct project ID: zsqrtnrfjxdjwqvssbtb
-const EDGE_BASE = 'https://zsqrtnrfjxdjwqvssbtb.supabase.co/functions/v1'
-
 export default function InvoicesPage() {
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [resultMsg, setResultMsg] = useState('')
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
@@ -98,31 +96,22 @@ export default function InvoicesPage() {
       return
     }
 
+    const r: any = insertedInvoice
+    if (r.processed) {
+      setResultMsg(
+        r.alerts > 0
+          ? `Invoice processed — ${r.alerts} price alert${r.alerts > 1 ? 's' : ''} detected. Check Price Alerts.`
+          : 'Invoice processed — no price increases detected.'
+      )
+    } else {
+      setResultMsg('Invoice uploaded — Shepherd is reviewing it now.')
+    }
     setSuccess(true)
     if (fileRef.current) fileRef.current.value = ''
     setUploading(false)
 
     // Refresh the list
     setRefreshKey(k => k + 1)
-
-    // Fire and forget — trigger Gemini processing
-    const sessionRes = await supabase.auth.getSession()
-    const token = sessionRes.data.session?.access_token
-    if (token) {
-      fetch(`${EDGE_BASE}/process-invoice`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ invoiceId: insertedInvoice.id }),
-      })
-        .then(() => {
-          // Refresh list after processing delay so status updates show
-          setTimeout(() => setRefreshKey(k => k + 1), 5000)
-        })
-        .catch(() => {})
-    }
   }
 
   const statusColor: Record<string, string> = {
@@ -153,13 +142,16 @@ export default function InvoicesPage() {
             />
           </div>
           <button type="submit" disabled={uploading} className="btn-primary px-6 py-2.5 shrink-0 disabled:opacity-50">
-            {uploading ? 'Uploading...' : 'Upload'}
+            {uploading ? 'Analyzing invoice...' : 'Upload'}
           </button>
         </form>
-        {success && (
-          <p className="text-green-400 text-sm mt-3">
-            Invoice uploaded — Shepherd is processing it now
+        {uploading && (
+          <p className="text-gray-400 text-sm mt-3">
+            Extracting line items and checking prices against your history — this takes about 30 seconds
           </p>
+        )}
+        {success && (
+          <p className="text-green-400 text-sm mt-3">{resultMsg}</p>
         )}
         {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
       </div>

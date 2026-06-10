@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { processInvoice } from '@/lib/process-invoice'
 
 // Correct project: zsqrtnrfjxdjwqvssbtb (ShepherdSignals)
 const SUPABASE_URL = 'https://zsqrtnrfjxdjwqvssbtb.supabase.co'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 function serviceClient() {
   return createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -106,7 +108,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: dbError?.message ?? 'Failed to save invoice record' }, { status: 500 })
     }
 
-    return NextResponse.json({ id: invoice.id, file_url: urlData.publicUrl })
+    // 6. Process immediately: Gemini extraction → price alerts → email
+    const processing = await processInvoice(invoice.id)
+
+    return NextResponse.json({
+      id: invoice.id,
+      file_url: urlData.publicUrl,
+      processed: !!processing.success,
+      alerts: processing.alerts ?? 0,
+      items: processing.items ?? 0,
+      processing_error: processing.error ?? null,
+    })
   } catch (err: any) {
     return NextResponse.json({ error: String(err?.message ?? err) }, { status: 500 })
   }

@@ -26,20 +26,20 @@ export default async function DashboardPage() {
   const companyId = companyUser?.company_id
 
   const [alertsRes, vendorsRes, signalsRes, invoicesRes] = await Promise.all([
-    supabase.from('price_alerts').select('id, alert_type, dismissed').eq('company_id', companyId).eq('dismissed', false),
+    supabase.from('price_alerts').select('id, alert_type, is_read').eq('company_id', companyId).eq('is_read', false),
     supabase.from('vendors').select('id').limit(100),
     supabase.from('market_signals').select('id').order('created_at', { ascending: false }).limit(100),
     supabase.from('invoices').select('id').eq('company_id', companyId).eq('status', 'processed'),
   ])
 
   const activeAlerts = alertsRes.data?.length ?? 0
-  const savingsAlerts = alertsRes.data?.filter(a => a.alert_type === 'better_price_available').length ?? 0
+  const savingsAlerts = alertsRes.data?.filter(a => a.alert_type === 'better_alternative').length ?? 0
   const vendorCount = vendorsRes.data?.length ?? 0
   const signalCount = signalsRes.data?.length ?? 0
   const invoiceCount = invoicesRes.data?.length ?? 0
 
   const { data: recentAlerts } = await supabase
-    .from('price_alerts').select('*').eq('company_id', companyId).eq('dismissed', false)
+    .from('price_alerts').select('*, products(name)').eq('company_id', companyId).eq('is_read', false)
     .order('created_at', { ascending: false }).limit(5)
 
   const { data: recentSignals } = await supabase
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white">{company?.name ?? 'Dashboard'}</h1>
           <p className="text-gray-400 mt-1">
-            {company?.plan === 'both' ? 'Weekly + Daily Signals' : 'Weekly Audit'} &bull;{' '}
+            {company?.plan === 'both' ? 'Weekly + Daily Signals' : company?.plan === 'daily' ? 'Daily Signals' : 'Weekly Audit'} &bull;{' '}
             <span className={company?.status === 'active' ? 'text-green-400' : 'text-yellow-400'}>
               {company?.status === 'trial' ? 'Trial' : 'Active'}
             </span>
@@ -111,14 +111,18 @@ export default async function DashboardPage() {
               <div className="space-y-2">
                 {recentAlerts.map((alert: any) => (
                   <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg bg-white/3 hover:bg-white/5 transition-colors">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${alert.alert_type === 'better_price_available' ? 'bg-red-400' : alert.alert_type === 'good_price' ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${alert.alert_type === 'better_alternative' ? 'bg-green-400' : 'bg-red-400'}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{alert.item_description}</p>
-                      <p className="text-gray-500 text-xs mt-0.5">{alert.alert_type === 'better_price_available' ? `${alert.savings_pct?.toFixed(0) ?? '?'}% above market` : alert.alert_type === 'good_price' ? 'Below market rate' : 'At market rate'}</p>
+                      <p className="text-white text-sm font-medium truncate">{alert.products?.name ?? 'Price alert'}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        {alert.alert_type === 'better_alternative'
+                          ? 'Cheaper alternative found'
+                          : `$${Number(alert.old_price ?? 0).toFixed(2)} → $${Number(alert.new_price ?? 0).toFixed(2)}`}
+                      </p>
                     </div>
-                    {alert.savings_pct && (
-                      <span className={`text-sm font-semibold shrink-0 ${alert.alert_type === 'better_price_available' ? 'text-red-400' : 'text-green-400'}`}>
-                        {alert.alert_type === 'better_price_available' ? '-' : '+'}{Math.abs(alert.savings_pct).toFixed(0)}%
+                    {alert.change_pct != null && (
+                      <span className={`text-sm font-semibold shrink-0 ${alert.alert_type === 'better_alternative' ? 'text-green-400' : 'text-red-400'}`}>
+                        {alert.alert_type === 'better_alternative' ? '-' : '+'}{Math.abs(Number(alert.change_pct)).toFixed(1)}%
                       </span>
                     )}
                   </div>

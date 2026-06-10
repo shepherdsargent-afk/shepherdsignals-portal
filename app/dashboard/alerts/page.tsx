@@ -4,36 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 
-// Fallback URLs for well-known vendors (used when vendor_website is not stored)
-const VENDOR_URLS: Record<string, string> = {
-  amazon:              'https://www.amazon.ca',
-  'amazon.ca':         'https://www.amazon.ca',
-  'amazon canada':     'https://www.amazon.ca',
-  sysco:               'https://www.sysco.ca',
-  'gordon food service': 'https://www.gfs.com',
-  gfs:                 'https://www.gfs.com',
-  staples:             'https://www.staples.ca',
-  costco:              'https://www.costco.ca',
-  uline:               'https://www.uline.ca',
-  webstaurantstore:    'https://www.webstaurantstore.com',
-  'restaurant depot':  'https://www.restaurantdepot.com',
-  grainger:            'https://www.grainger.ca',
-  'home depot':        'https://www.homedepot.ca',
-  totalpack:           'https://www.totalpack.ca',
-  officecrave:         'https://www.officecrave.com',
-  'global industrial': 'https://www.globalindustrial.ca',
-}
-
-function resolveVendorUrl(vendorName: string | null, storedUrl: string | null): string | null {
-  if (storedUrl) return storedUrl
-  if (!vendorName) return null
-  const key = vendorName.toLowerCase().trim()
-  for (const [k, v] of Object.entries(VENDOR_URLS)) {
-    if (key.includes(k) || k.includes(key)) return v
-  }
-  return null
-}
-
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,9 +16,9 @@ export default function AlertsPage() {
     if (!cu) return
     const { data } = await supabase
       .from('price_alerts')
-      .select('*')
+      .select('*, products(name, unit), vendors(name)')
       .eq('company_id', cu.company_id)
-      .eq('dismissed', false)
+      .eq('is_read', false)
       .order('created_at', { ascending: false })
       .limit(50)
     setAlerts(data ?? [])
@@ -58,29 +28,23 @@ export default function AlertsPage() {
   useEffect(() => { load() }, [])
 
   async function dismiss(id: string) {
-    await supabase.from('price_alerts').update({ dismissed: true }).eq('id', id)
+    await supabase.from('price_alerts').update({ is_read: true }).eq('id', id)
     setAlerts(prev => prev.filter(a => a.id !== id))
   }
 
   function exportToExcel() {
-    const BOM = 'ï»¿'
-    const headers = ['Item', 'Alert Type', 'Your Price ($/unit)', 'Market Price ($/unit)', 'Savings/Unit ($)', 'Savings %', 'Supplier', 'Supplier URL', 'Category', 'Date']
-    const rows = alerts.map(a => {
-      const type = a.alert_type === 'better_price_available' ? 'Savings Opportunity'
-        : a.alert_type === 'good_price' ? 'Good Price' : 'Market Rate'
-      return [
-        `"${(a.item_description ?? '').replace(/"/g, '""')}"`,
-        type,
-        Number(a.your_unit_price ?? 0).toFixed(2),
-        Number(a.market_unit_price ?? 0).toFixed(2),
-        Math.abs(Number(a.savings_per_unit ?? 0)).toFixed(2),
-        `${Math.abs(Number(a.savings_pct ?? 0)).toFixed(1)}%`,
-        `"${(a.suggested_vendor ?? '').replace(/"/g, '""')}"`,
-        resolveVendorUrl(a.suggested_vendor, a.vendor_website) ?? '',
-        a.category ?? '',
-        a.created_at ? format(new Date(a.created_at), 'yyyy-MM-dd') : '',
-      ].join(',')
-    })
+    const BOM = '﻿'
+    const headers = ['Item', 'Vendor', 'Change %', 'Old Price ($)', 'New Price ($)', 'Type', 'Details', 'Date']
+    const rows = alerts.map(a => [
+      `"${(a.products?.name ?? '').replace(/"/g, '""')}"`,
+      `"${(a.vendors?.name ?? '').replace(/"/g, '""')}"`,
+      `${a.change_direction === 'down' ? '-' : '+'}${Number(a.change_pct ?? 0).toFixed(1)}%`,
+      Number(a.old_price ?? 0).toFixed(2),
+      Number(a.new_price ?? 0).toFixed(2),
+      a.alert_type === 'better_alternative' ? 'Savings Opportunity' : 'Price Increase',
+      `"${(a.message ?? '').replace(/"/g, '""')}"`,
+      a.created_at ? format(new Date(a.created_at), 'yyyy-MM-dd') : '',
+    ].join(','))
     const csv = BOM + [headers.join(','), ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -91,16 +55,16 @@ export default function AlertsPage() {
     URL.revokeObjectURL(url)
   }
 
-  const overpriced = alerts.filter(a => a.alert_type === 'better_price_available')
-  const good = alerts.filter(a => a.alert_type === 'good_price')
-  const market = alerts.filter(a => a.alert_type === 'market_rate')
+  const increases = alerts.filter(a => a.alert_type === 'price_change')
+  const savings = alerts.filter(a => a.alert_type === 'better_alternative')
+  const other = alerts.filter(a => a.alert_type !== 'price_change' && a.alert_type !== 'better_alternative')
 
   return (
     <div className="p-8">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Price Alerts</h1>
-          <p className="text-gray-400 mt-1">ShepherdSignals compares your invoice prices against current market rates</p>
+          <p className="text-gray-400 mt-1">ShepherdSignals flags price increases the moment your invoices are processed</p>
         </div>
         {alerts.length > 0 && (
           <button
@@ -121,33 +85,33 @@ export default function AlertsPage() {
       {!loading && alerts.length === 0 && (
         <div className="card text-center py-16">
           <p className="text-white font-medium">No alerts yet</p>
-          <p className="text-gray-500 text-sm mt-2">Upload an invoice and ShepherdSignals will search current market prices and alert you to any savings opportunities</p>
+          <p className="text-gray-500 text-sm mt-2">Upload an invoice and ShepherdSignals will compare every line item against your price history and flag any increases</p>
           <a href="/dashboard/invoices" className="btn-primary inline-block mt-4 px-6 py-2">Upload Invoice</a>
         </div>
       )}
 
-      {overpriced.length > 0 && (
+      {increases.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3">
-            Savings Opportunities &mdash; {overpriced.length} item{overpriced.length > 1 ? 's' : ''} above market rate
+            Price Increases &mdash; {increases.length} item{increases.length > 1 ? 's' : ''} flagged
           </h2>
-          <div className="space-y-3">{overpriced.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
+          <div className="space-y-3">{increases.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
         </section>
       )}
-      {market.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
-            At Market Rate &mdash; {market.length} item{market.length > 1 ? 's' : ''}
-          </h2>
-          <div className="space-y-3">{market.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
-        </section>
-      )}
-      {good.length > 0 && (
+      {savings.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-green-400 uppercase tracking-wide mb-3">
-            Good Prices &mdash; {good.length} item{good.length > 1 ? 's' : ''} below market
+            Savings Opportunities &mdash; {savings.length} verified alternative{savings.length > 1 ? 's' : ''}
           </h2>
-          <div className="space-y-3">{good.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
+          <div className="space-y-3">{savings.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
+        </section>
+      )}
+      {other.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
+            Market Signals &mdash; {other.length}
+          </h2>
+          <div className="space-y-3">{other.map((a: any) => <AlertCard key={a.id} alert={a} onDismiss={dismiss} />)}</div>
         </section>
       )}
     </div>
@@ -155,28 +119,25 @@ export default function AlertsPage() {
 }
 
 function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) => void }) {
-  const isOverpriced = alert.alert_type === 'better_price_available'
-  const isGood       = alert.alert_type === 'good_price'
-  const savingsPct   = Math.abs(Number(alert.savings_pct ?? 0))
-  const yourPrice    = Number(alert.your_unit_price ?? 0)
-  const marketPrice  = Number(alert.market_unit_price ?? 0)
-  const savingsPerUnit = Math.abs(Number(alert.savings_per_unit ?? (yourPrice - marketPrice)))
-  const vendorUrl    = resolveVendorUrl(alert.suggested_vendor, alert.vendor_website)
+  const isSaving = alert.alert_type === 'better_alternative'
+  const pct = Number(alert.change_pct ?? 0)
+  const oldPrice = Number(alert.old_price ?? 0)
+  const newPrice = Number(alert.new_price ?? 0)
 
   return (
-    <div className={`card group relative border-l-4 ${isOverpriced ? 'border-l-red-500' : isGood ? 'border-l-green-500' : 'border-l-yellow-500'}`}>
+    <div className={`card group relative border-l-4 ${isSaving ? 'border-l-green-500' : 'border-l-red-500'}`}>
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-white font-semibold">{alert.item_description}</p>
-              {alert.category && (
-                <span className="text-xs bg-white/5 text-gray-500 px-2 py-0.5 rounded capitalize mt-1 inline-block">{alert.category}</span>
+              <p className="text-white font-semibold">{alert.products?.name ?? 'Product'}</p>
+              {alert.vendors?.name && (
+                <span className="text-xs bg-white/5 text-gray-500 px-2 py-0.5 rounded mt-1 inline-block">{alert.vendors.name}</span>
               )}
             </div>
             <div className="text-right shrink-0">
-              <span className={`text-xl font-bold tabular-nums ${isOverpriced ? 'text-red-400' : isGood ? 'text-green-400' : 'text-yellow-400'}`}>
-                {isOverpriced ? '-' : isGood ? '+' : ''}{savingsPct.toFixed(0)}%
+              <span className={`text-xl font-bold tabular-nums ${isSaving ? 'text-green-400' : 'text-red-400'}`}>
+                {isSaving ? '-' : '+'}{Math.abs(pct).toFixed(1)}%
               </span>
               <p className="text-gray-600 text-xs mt-0.5">{alert.created_at ? format(new Date(alert.created_at), 'MMM d, yyyy') : ''}</p>
             </div>
@@ -184,46 +145,28 @@ function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) =
 
           <div className="flex items-center gap-6 mt-3 text-sm flex-wrap">
             <div>
-              <p className="text-gray-500 text-xs mb-0.5">You paid</p>
-              <p className="text-white font-semibold tabular-nums">${yourPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span></p>
+              <p className="text-gray-500 text-xs mb-0.5">{isSaving ? 'You pay' : 'Was'}</p>
+              <p className="text-white font-semibold tabular-nums">${oldPrice.toFixed(2)}</p>
             </div>
-            <div className="text-gray-600 text-xs">vs</div>
+            <div className="text-gray-600 text-xs">→</div>
             <div>
-              <p className="text-gray-500 text-xs mb-0.5">Market rate</p>
-              <p className={`font-semibold tabular-nums ${isOverpriced ? 'text-green-400' : isGood ? 'text-red-400' : 'text-yellow-400'}`}>
-                ${marketPrice.toFixed(2)}<span className="text-gray-500 text-xs font-normal"> /unit</span>
-              </p>
+              <p className="text-gray-500 text-xs mb-0.5">{isSaving ? 'Alternative' : 'Now'}</p>
+              <p className={`font-semibold tabular-nums ${isSaving ? 'text-green-400' : 'text-red-400'}`}>${newPrice.toFixed(2)}</p>
             </div>
-            {savingsPerUnit > 0.01 && (
-              <div>
-                <p className="text-gray-500 text-xs mb-0.5">{isOverpriced ? 'Could save' : 'Saving'}</p>
-                <p className={`font-semibold tabular-nums ${isOverpriced ? 'text-red-400' : 'text-green-400'}`}>
-                  ${savingsPerUnit.toFixed(2)}/unit
-                </p>
-              </div>
-            )}
           </div>
 
-          <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {vendorUrl ? (
-              <a href={vendorUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg transition-colors font-medium">
-                {isOverpriced ? 'Buy cheaper at' : 'View at'} {alert.suggested_vendor}
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-              </a>
-            ) : alert.suggested_vendor ? (
-              <p className="text-gray-500 text-sm">
-                {isOverpriced ? 'Check pricing at' : 'Found at'}: <span className="text-amber-400">{alert.suggested_vendor}</span>
-              </p>
-            ) : null}
-            <button onClick={() => onDismiss(alert.id)} className="text-xs text-gray-600 hover:text-gray-400 transition-colors ml-auto">
-              Dismiss
-            </button>
-          </div>
+          {alert.message && (
+            <p className="text-gray-400 text-sm mt-3 leading-relaxed">{alert.message}</p>
+          )}
         </div>
+
+        <button
+          onClick={() => onDismiss(alert.id)}
+          className="text-gray-600 hover:text-white text-xs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Dismiss alert"
+        >
+          Dismiss
+        </button>
       </div>
     </div>
   )
