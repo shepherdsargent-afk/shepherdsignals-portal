@@ -63,50 +63,44 @@ export default function InvoicesPage() {
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
-    const file = fileRef.current?.files?.[0]
-    if (!file) return
+    const files = Array.from(fileRef.current?.files ?? [])
+    if (!files.length) return
 
     setUploading(true)
     setError('')
     setSuccess(false)
 
-    // Upload via server route (handles storage + invoice record with proper permissions)
-    const formData = new FormData()
-    formData.append('file', file)
+    // Upload each file via the server route (storage + record + Gemini processing)
+    const uploads = await Promise.all(
+      files.map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        try {
+          const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
+          const json = await res.json()
+          if (!res.ok) return { error: json.error ?? 'Upload failed', name: file.name }
+          return json
+        } catch (err: any) {
+          return { error: String(err?.message ?? err), name: file.name }
+        }
+      })
+    )
 
-    let insertedInvoice: { id: string } | null = null
-    try {
-      const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
-      const json = await res.json()
-      if (!res.ok) {
-        setError(json.error ?? 'Upload failed')
-        setUploading(false)
-        return
-      }
-      insertedInvoice = json
-    } catch (err: any) {
-      setError('Upload failed — ' + String(err?.message ?? err))
-      setUploading(false)
-      return
+    const failed = uploads.filter((u: any) => u.error)
+    const succeeded = uploads.filter((u: any) => !u.error)
+    const totalAlerts = succeeded.reduce((sum: number, u: any) => sum + (u.alerts ?? 0), 0)
+
+    if (failed.length) {
+      setError(failed.map((f: any) => `${f.name}: ${f.error}`).join(' · '))
     }
-
-    if (!insertedInvoice?.id) {
-      setError('Failed to save invoice record')
-      setUploading(false)
-      return
-    }
-
-    const r: any = insertedInvoice
-    if (r.processed) {
+    if (succeeded.length) {
       setResultMsg(
-        r.alerts > 0
-          ? `Invoice processed — ${r.alerts} price alert${r.alerts > 1 ? 's' : ''} detected. Check Price Alerts.`
-          : 'Invoice processed — no price increases detected.'
+        totalAlerts > 0
+          ? `${succeeded.length} invoice${succeeded.length > 1 ? 's' : ''} processed — ${totalAlerts} price alert${totalAlerts > 1 ? 's' : ''} detected. Check Price Alerts.`
+          : `${succeeded.length} invoice${succeeded.length > 1 ? 's' : ''} processed — no price increases detected.`
       )
-    } else {
-      setResultMsg('Invoice uploaded — Shepherd is reviewing it now.')
+      setSuccess(true)
     }
-    setSuccess(true)
     if (fileRef.current) fileRef.current.value = ''
     setUploading(false)
 
@@ -132,11 +126,12 @@ export default function InvoicesPage() {
         <h2 className="text-white font-semibold mb-4">Upload Invoice</h2>
         <form onSubmit={handleUpload} className="flex items-end gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
-            <label className="block text-sm text-gray-400 mb-2">Select PDF or image</label>
+            <label className="block text-sm text-gray-400 mb-2">Select PDF or image — multiple files supported</label>
             <input
               ref={fileRef}
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
+              multiple
               required
               className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-mid file:text-white file:cursor-pointer hover:file:bg-brand-mid/80"
             />
