@@ -45,11 +45,13 @@ export async function processInvoice(invoiceId: string): Promise<{ success?: boo
   // Atomic claim — the DB webhook and the upload route can both trigger processing;
   // only the first one to stamp processed_at proceeds. Flagged (errored) invoices
   // can always be reclaimed so they are retryable.
+  // Stale claims (function killed mid-processing) become reclaimable after 2 minutes.
+  const staleCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
   const { data: claimed } = await supabase
     .from('invoices')
     .update({ processed_at: new Date().toISOString(), status: 'pending', notes: null })
     .eq('id', invoiceId)
-    .or('processed_at.is.null,status.eq.flagged')
+    .or(`processed_at.is.null,status.eq.flagged,and(status.eq.pending,processed_at.lt.${staleCutoff})`)
     .select('id')
   if (!claimed || claimed.length === 0) return { skipped: 'already being processed' }
 
@@ -119,9 +121,12 @@ const RETRYABLE = /not found|404|NOT_FOUND|unsupported|503|unavailable|overloade
 async function generateWithFallback(prompt: string): Promise<string> {
   const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
   let lastErr: any = null
-  // 3 cycles through the model chain with backoff — survives rate limits and blips
+  // Retry across the model chain, but stay inside the serverless time budget —
+  // running out of retries beats the function being killed mid-flight.
+  const deadline = Date.now() + 35_000
   for (let attempt = 0; attempt < 3; attempt++) {
     for (const modelName of GEMINI_MODELS) {
+      if (Date.now() > deadline) throw lastErr ?? new Error('Gemini retry budget exceeded')
       try {
         const model = gemini.getGenerativeModel({ model: modelName })
         const result = await model.generateContent(prompt)
@@ -131,7 +136,7 @@ async function generateWithFallback(prompt: string): Promise<string> {
         if (!RETRYABLE.test(String(err?.message))) throw err
       }
     }
-    if (attempt < 2) await new Promise(r => setTimeout(r, 4000 * (attempt + 1)))
+    if (attempt < 2 && Date.now() + 3000 < deadline) await new Promise(r => setTimeout(r, 3000))
   }
   throw lastErr ?? new Error('All Gemini models failed')
 }

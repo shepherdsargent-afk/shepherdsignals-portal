@@ -81,7 +81,8 @@ export default function InvoicesPage() {
       formData.append('file', file)
       try {
         const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
-        const json = await res.json()
+        let json: any = null
+        try { json = await res.json() } catch { json = { error: 'Processing took too long — use Retry on the invoice below' } }
         uploads.push(res.ok ? json : { error: json.error ?? 'Upload failed', name: file.name })
       } catch (err: any) {
         uploads.push({ error: String(err?.message ?? err), name: file.name })
@@ -222,7 +223,7 @@ export default function InvoicesPage() {
                 <span className={`text-xs px-2 py-1 rounded-full capitalize ${statusColor[inv.status] ?? ''}`}>
                   {inv.status}
                 </span>
-                {inv.status === 'flagged' && (
+                {(inv.status === 'flagged' || inv.status === 'pending') && (
                   <button
                     onClick={() => retryInvoice(inv.id)}
                     disabled={retrying === inv.id}
