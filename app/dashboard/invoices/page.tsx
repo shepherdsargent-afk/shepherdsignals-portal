@@ -72,43 +72,28 @@ export default function InvoicesPage() {
     setError('')
     setSuccess(false)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('Not authenticated'); setUploading(false); return }
+    // Upload via server route (handles storage + invoice record with proper permissions)
+    const formData = new FormData()
+    formData.append('file', file)
 
-    const { data: cu } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', user.id)
-      .single()
-    if (!cu) { setError('This account is not linked to a company yet — contact shepherdsargent@shepherdsignals.com to get set up.'); setUploading(false); return }
-
-    // Upload to Supabase Storage
-    const fileName = `${cu.company_id}/${Date.now()}-${file.name}`
-    const { error: uploadError } = await supabase.storage
-      .from('invoices')
-      .upload(fileName, file, { contentType: file.type })
-
-    if (uploadError) {
-      setError(uploadError.message)
+    let insertedInvoice: { id: string } | null = null
+    try {
+      const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? 'Upload failed')
+        setUploading(false)
+        return
+      }
+      insertedInvoice = json
+    } catch (err: any) {
+      setError('Upload failed — ' + String(err?.message ?? err))
       setUploading(false)
       return
     }
 
-    const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(fileName)
-
-    // Insert invoice record
-    const { data: insertedInvoice, error: dbError } = await supabase
-      .from('invoices')
-      .insert({
-        company_id: cu.company_id,
-        file_url: urlData.publicUrl,
-        status: 'pending',
-      })
-      .select('id')
-      .single()
-
-    if (dbError || !insertedInvoice) {
-      setError(dbError?.message ?? 'Failed to save invoice record')
+    if (!insertedInvoice?.id) {
+      setError('Failed to save invoice record')
       setUploading(false)
       return
     }
