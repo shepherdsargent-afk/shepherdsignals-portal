@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { MobileMenuButton } from './components/MobileMenuButton'
+import { SignOutButton } from './components/SignOutButton'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServerSupabaseClient()
@@ -77,6 +78,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <span className="text-xs text-gray-500">{company?.status === 'active' ? 'Active' : 'Trial'}</span>
             </div>
             <Link href="/dashboard/settings" className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">Settings</Link>
+          </div>
+          <div className="mt-1">
+            <SignOutButton />
           </div>
         </div>
       </aside>

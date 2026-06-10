@@ -80,7 +80,7 @@ export default function InvoicesPage() {
       .select('company_id')
       .eq('user_id', user.id)
       .single()
-    if (!cu) { setError('No company found'); setUploading(false); return }
+    if (!cu) { setError('This account is not linked to a company yet — contact shepherdsargent@shepherdsignals.com to get set up.'); setUploading(false); return }
 
     // Upload to Supabase Storage
     const fileName = `${cu.company_id}/${Date.now()}-${file.name}`

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const EDGE_BASE = 'https://lmrgzsfvzzdoatpddjvb.supabase.co/functions/v1'
+const EDGE_BASE = 'https://zsqrtnrfjxdjwqvssbtb.supabase.co/functions/v1'
 const ADMIN_KEY = 'shepherd-admin-2024'
 
 export async function POST(request: Request) {
