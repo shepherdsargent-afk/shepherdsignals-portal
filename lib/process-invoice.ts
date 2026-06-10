@@ -86,7 +86,16 @@ export async function processInvoice(invoiceId: string): Promise<{ success?: boo
 
   try {
     const pdfText = await extractPdfText(invoice.file_url)
-    const extracted = await extractInvoiceData(pdfText)
+    let extracted: ExtractedInvoice
+    try {
+      extracted = await extractInvoiceData(pdfText)
+    } catch (geminiErr: any) {
+      // Gemini unavailable — fall back to the deterministic text parser.
+      // Only fail the invoice if BOTH extraction paths produce nothing.
+      console.error('[process-invoice] Gemini failed, using fallback parser:', geminiErr?.message)
+      extracted = parseInvoiceTextFallback(pdfText)
+      if (!extracted.items.length) throw geminiErr
+    }
 
     const vendorId = await resolveVendor(supabase, extracted.vendor_name, invoice.company_id)
 
@@ -173,6 +182,76 @@ async function generateWithFallback(prompt: string): Promise<string> {
     if (attempt < 3 && Date.now() + 2000 < deadline) await new Promise(r => setTimeout(r, 2000))
   }
   throw lastErr ?? new Error('All Gemini models failed')
+}
+
+// ─── Deterministic fallback parser ────────────────────────────────────────────
+// If Gemini is unavailable (outage / rate limit), parse the invoice text directly.
+// Handles standard tabular invoices: SKU + description — unit + qty + $unit + $total.
+// Ambiguous digit runs (e.g. "32-0-8" + qty "20" → "32-0-820") are resolved by
+// validating qty × unit price ≈ line total.
+
+export function parseInvoiceTextFallback(pdfText: string): ExtractedInvoice {
+  const lines = pdfText.split('\n').map(l => l.trim()).filter(Boolean)
+
+  // Vendor: leading lines before the first line containing a digit (the address)
+  const vendorParts: string[] = []
+  for (const line of lines) {
+    if (/\d/.test(line) || /^INVOICE$/i.test(line)) break
+    vendorParts.push(line)
+    if (vendorParts.length >= 3) break
+  }
+  const vendor_name = vendorParts.join(' ').trim()
+
+  const invNumMatch = pdfText.match(/Invoice\s*#?:?\s*\n?\s*([A-Z]{2,4}-\d{2,4}-\d{2,6})/i)
+  const dateMatch = pdfText.match(/Date:?\s*\n?\s*([A-Za-z]+ \d{1,2}, \d{4})/)
+  const totalMatch = pdfText.match(/TOTAL\s+DUE:?\s*\$?\s*([\d,]+\.\d{2})/i) ?? pdfText.match(/Subtotal:?\s*\$?\s*([\d,]+\.\d{2})/i)
+
+  let invoice_date = new Date().toISOString().slice(0, 10)
+  if (dateMatch) {
+    const d = new Date(dateMatch[1])
+    if (!isNaN(d.getTime())) invoice_date = d.toISOString().slice(0, 10)
+  }
+
+  const items: ExtractedItem[] = []
+  const lineRe = /^([A-Z]{2,4}-\d{3,5})(.+)$/
+  for (const line of lines) {
+    const m = line.match(lineRe)
+    if (!m) continue
+    const rest = m[2]
+    // split on the dollar amounts: <desc+qty>$<unit>$<total>
+    const money = rest.match(/^(.*?)\$([\d,]+\.\d{2})\$([\d,]+\.\d{2})\s*$/)
+    if (!money) continue
+    const head = money[1]
+    const price = parseFloat(money[2].replace(/,/g, ''))
+    const lineTotal = parseFloat(money[3].replace(/,/g, ''))
+    const tail = head.match(/(\d+)\s*$/)
+    if (!tail || !price) continue
+    // resolve qty: try suffixes of the trailing digit run, validate against total
+    const digits = tail[1]
+    let qty = 0
+    for (let len = 1; len <= digits.length; len++) {
+      const candidate = parseInt(digits.slice(digits.length - len), 10)
+      if (candidate > 0 && Math.abs(candidate * price - lineTotal) < 0.06) { qty = candidate; break }
+    }
+    if (!qty) qty = parseInt(digits, 10)
+    const desc = head.slice(0, head.length - (qty.toString().length)).replace(/\s+$/, '')
+    const [namePart, unitPart] = desc.split(/\s+—\s+/)
+    items.push({
+      item: (namePart ?? desc).trim(),
+      unit: (unitPart ?? '').trim() || 'each',
+      price,
+      quantity: qty,
+      total: lineTotal,
+    })
+  }
+
+  return {
+    vendor_name,
+    invoice_number: invNumMatch?.[1] ?? '',
+    invoice_date,
+    total: totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : 0,
+    items,
+  }
 }
 
 async function extractInvoiceData(pdfText: string): Promise<ExtractedInvoice> {
