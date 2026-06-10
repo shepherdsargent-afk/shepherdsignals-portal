@@ -42,6 +42,16 @@ export async function processInvoice(invoiceId: string): Promise<{ success?: boo
   if (invErr || !invoice) return { error: 'Invoice not found' }
   if (invoice.status === 'processed') return { skipped: 'already processed' }
 
+  // Atomic claim — the DB webhook and the upload route can both trigger processing;
+  // only the first one to stamp processed_at proceeds.
+  const { data: claimed } = await supabase
+    .from('invoices')
+    .update({ processed_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .is('processed_at', null)
+    .select('id')
+  if (!claimed || claimed.length === 0) return { skipped: 'already being processed' }
+
   try {
     const pdfText = await extractPdfText(invoice.file_url)
     const extracted = await extractInvoiceData(pdfText)
@@ -113,8 +123,8 @@ async function generateWithFallback(prompt: string): Promise<string> {
       return result.response.text().trim()
     } catch (err: any) {
       lastErr = err
-      // try next model on 404 / not found; otherwise rethrow
-      if (!/not found|404|NOT_FOUND|unsupported/i.test(String(err?.message))) throw err
+      // try next model on not-found / overloaded / rate-limited; otherwise rethrow
+      if (!/not found|404|NOT_FOUND|unsupported|503|unavailable|overloaded|429|RESOURCE_EXHAUSTED|quota/i.test(String(err?.message))) throw err
     }
   }
   throw lastErr ?? new Error('All Gemini models failed')
