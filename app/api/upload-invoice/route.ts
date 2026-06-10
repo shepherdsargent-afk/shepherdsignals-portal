@@ -61,11 +61,22 @@ export async function DELETE(request: Request) {
 
     const { data: invoice } = await admin
       .from('invoices')
-      .select('id, company_id')
+      .select('id, company_id, invoice_number')
       .eq('id', id)
       .single()
     if (!invoice || invoice.company_id !== cu.company_id) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Cascade-clean everything this invoice generated
+    if (invoice.invoice_number) {
+      await admin.from('price_alerts').delete()
+        .eq('company_id', cu.company_id)
+        .ilike('message', `%invoice ${invoice.invoice_number}%`)
+      await admin.from('price_records').delete()
+        .eq('company_id', cu.company_id)
+        .eq('invoice_number', invoice.invoice_number)
+        .eq('notes', 'Auto from invoice processing')
     }
 
     const { error: delErr } = await admin.from('invoices').delete().eq('id', id)

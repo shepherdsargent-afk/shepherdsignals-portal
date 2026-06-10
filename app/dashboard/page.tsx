@@ -25,12 +25,16 @@ export default async function DashboardPage() {
   const company = (companyUser?.companies as any)
   const companyId = companyUser?.company_id
 
-  const [alertsRes, vendorsRes, invoicesRes, processedVendorsRes] = await Promise.all([
+  const [alertsRes, invoicesRes, processedVendorsRes] = await Promise.all([
     supabase.from('price_alerts').select('id, alert_type, is_read').eq('company_id', companyId).eq('is_read', false),
-    supabase.from('vendors').select('id').limit(100),
     supabase.from('invoices').select('id').eq('company_id', companyId).eq('status', 'processed'),
-    supabase.from('invoices').select('vendors(category)').eq('company_id', companyId).eq('status', 'processed'),
+    supabase.from('invoices').select('vendor_id, vendors(category)').eq('company_id', companyId).eq('status', 'processed'),
   ])
+
+  // Vendors = suppliers identified on THIS company's processed invoices
+  const vendorsRes = {
+    data: Array.from(new Set((processedVendorsRes.data ?? []).map((i: any) => i.vendor_id).filter(Boolean))).map(id => ({ id })),
+  }
 
   // Signals are personalized: only categories this company actually buys
   const purchasedCategories = Array.from(

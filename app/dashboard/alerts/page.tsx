@@ -16,7 +16,7 @@ export default function AlertsPage() {
     if (!cu) return
     const { data } = await supabase
       .from('price_alerts')
-      .select('*, products(name, unit), vendors(name)')
+      .select('*, products(name, unit, category), vendors(name)')
       .eq('company_id', cu.company_id)
       .eq('is_read', false)
       .order('created_at', { ascending: false })
@@ -118,11 +118,37 @@ export default function AlertsPage() {
   )
 }
 
+// Where to comparison-shop, by product category (falls back to general retailers)
+const SHOP_LINKS: Record<string, { label: string; url: (q: string) => string }[]> = {
+  food: [
+    { label: 'Sysco Canada', url: q => `https://shop.sysco.ca/app/catalog?q=${q}` },
+    { label: 'Gordon Food Service', url: q => `https://order.gfs.ca/search?searchTerm=${q}` },
+    { label: 'Costco Business', url: q => `https://www.costcobusinesscentre.ca/CatalogSearch?keyword=${q}` },
+  ],
+  grounds: [
+    { label: 'SiteOne', url: q => `https://www.siteone.com/en/search?q=${q}` },
+    { label: 'Amazon.ca', url: q => `https://www.amazon.ca/s?k=${q}` },
+    { label: 'Google Shopping', url: q => `https://www.google.com/search?tbm=shop&q=${q}` },
+  ],
+  facility: [
+    { label: 'Uline', url: q => `https://www.uline.ca/Product/AdvSearchResult?keywords=${q}` },
+    { label: 'Amazon.ca', url: q => `https://www.amazon.ca/s?k=${q}` },
+    { label: 'Costco Business', url: q => `https://www.costcobusinesscentre.ca/CatalogSearch?keyword=${q}` },
+  ],
+  default: [
+    { label: 'Amazon.ca', url: q => `https://www.amazon.ca/s?k=${q}` },
+    { label: 'Google Shopping', url: q => `https://www.google.com/search?tbm=shop&q=${q}` },
+    { label: 'Costco Business', url: q => `https://www.costcobusinesscentre.ca/CatalogSearch?keyword=${q}` },
+  ],
+}
+
 function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) => void }) {
   const isSaving = alert.alert_type === 'better_alternative'
   const pct = Number(alert.change_pct ?? 0)
   const oldPrice = Number(alert.old_price ?? 0)
   const newPrice = Number(alert.new_price ?? 0)
+  const query = encodeURIComponent(`${alert.products?.name ?? ''} ${alert.products?.unit ?? ''}`.trim())
+  const shopLinks = SHOP_LINKS[alert.products?.category as string] ?? SHOP_LINKS.default
 
   return (
     <div className={`card group relative border-l-4 ${isSaving ? 'border-l-green-500' : 'border-l-red-500'}`}>
@@ -157,6 +183,27 @@ function AlertCard({ alert, onDismiss }: { alert: any; onDismiss: (id: string) =
 
           {alert.message && (
             <p className="text-gray-400 text-sm mt-3 leading-relaxed">{alert.message}</p>
+          )}
+
+          {query && (
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              <span className="text-gray-500 text-xs">Find a better price:</span>
+              {shopLinks.map(link => (
+                <a
+                  key={link.label}
+                  href={link.url(query)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  {link.label}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </a>
+              ))}
+            </div>
           )}
         </div>
 

@@ -10,6 +10,7 @@ export default function InvoicesPage() {
   const [resultMsg, setResultMsg] = useState('')
   const [progress, setProgress] = useState('')
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
@@ -111,6 +112,20 @@ export default function InvoicesPage() {
     setUploading(false)
 
     // Refresh the list
+    setRefreshKey(k => k + 1)
+  }
+
+  async function removeInvoice(id: string) {
+    if (!window.confirm('Remove this invoice? Its price alerts and history entries will be deleted too.')) return
+    setRemoving(id)
+    try {
+      await fetch('/api/upload-invoice', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+    } catch {}
+    setRemoving(null)
     setRefreshKey(k => k + 1)
   }
 
@@ -232,6 +247,14 @@ export default function InvoicesPage() {
                     {retrying === inv.id ? 'Retrying…' : 'Retry'}
                   </button>
                 )}
+                <button
+                  onClick={() => removeInvoice(inv.id)}
+                  disabled={removing === inv.id}
+                  className="text-gray-600 hover:text-red-400 text-xs disabled:opacity-50 transition-colors"
+                  title="Remove this invoice and its alerts"
+                >
+                  {removing === inv.id ? 'Removing…' : 'Remove'}
+                </button>
                 {inv.file_url && (
                   <a
                     href={inv.file_url}
