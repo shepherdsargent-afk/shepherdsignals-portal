@@ -25,12 +25,20 @@ export default async function DashboardPage() {
   const company = (companyUser?.companies as any)
   const companyId = companyUser?.company_id
 
-  const [alertsRes, vendorsRes, signalsRes, invoicesRes] = await Promise.all([
+  const [alertsRes, vendorsRes, invoicesRes, processedVendorsRes] = await Promise.all([
     supabase.from('price_alerts').select('id, alert_type, is_read').eq('company_id', companyId).eq('is_read', false),
     supabase.from('vendors').select('id').limit(100),
-    supabase.from('market_signals').select('id').order('created_at', { ascending: false }).limit(100),
     supabase.from('invoices').select('id').eq('company_id', companyId).eq('status', 'processed'),
+    supabase.from('invoices').select('vendors(category)').eq('company_id', companyId).eq('status', 'processed'),
   ])
+
+  // Signals are personalized: only categories this company actually buys
+  const purchasedCategories = Array.from(
+    new Set((processedVendorsRes.data ?? []).map((i: any) => i.vendors?.category).filter(Boolean))
+  ) as string[]
+  const signalsRes = purchasedCategories.length > 0
+    ? await supabase.from('market_signals').select('id').overlaps('affected_categories', purchasedCategories).limit(100)
+    : { data: [] as any[] }
 
   const activeAlerts = alertsRes.data?.length ?? 0
   const savingsAlerts = alertsRes.data?.filter(a => a.alert_type === 'better_alternative').length ?? 0
@@ -42,8 +50,12 @@ export default async function DashboardPage() {
     .from('price_alerts').select('*, products(name)').eq('company_id', companyId).eq('is_read', false)
     .order('created_at', { ascending: false }).limit(5)
 
-  const { data: recentSignals } = await supabase
-    .from('market_signals').select('*').order('published_at', { ascending: false }).limit(3)
+  const { data: recentSignals } = purchasedCategories.length > 0
+    ? await supabase
+        .from('market_signals').select('*')
+        .overlaps('affected_categories', purchasedCategories)
+        .order('published_at', { ascending: false }).limit(3)
+    : { data: [] as any[] }
 
   return (
     <div>

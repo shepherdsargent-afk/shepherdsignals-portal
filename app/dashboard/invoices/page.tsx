@@ -8,6 +8,8 @@ export default function InvoicesPage() {
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [resultMsg, setResultMsg] = useState('')
+  const [progress, setProgress] = useState('')
+  const [retrying, setRetrying] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
@@ -70,21 +72,24 @@ export default function InvoicesPage() {
     setError('')
     setSuccess(false)
 
-    // Upload each file via the server route (storage + record + Gemini processing)
-    const uploads = await Promise.all(
-      files.map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        try {
-          const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
-          const json = await res.json()
-          if (!res.ok) return { error: json.error ?? 'Upload failed', name: file.name }
-          return json
-        } catch (err: any) {
-          return { error: String(err?.message ?? err), name: file.name }
-        }
-      })
-    )
+    // Process files ONE AT A TIME — parallel calls trip Gemini rate limits
+    const uploads: any[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setProgress(files.length > 1 ? `Processing invoice ${i + 1} of ${files.length} — ${file.name}` : `Analyzing ${file.name}`)
+      const formData = new FormData()
+      formData.append('file', file)
+      try {
+        const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
+        const json = await res.json()
+        uploads.push(res.ok ? json : { error: json.error ?? 'Upload failed', name: file.name })
+      } catch (err: any) {
+        uploads.push({ error: String(err?.message ?? err), name: file.name })
+      }
+      // Refresh the list as each invoice lands
+      setRefreshKey(k => k + 1)
+    }
+    setProgress('')
 
     const failed = uploads.filter((u: any) => u.error)
     const succeeded = uploads.filter((u: any) => !u.error)
@@ -105,6 +110,24 @@ export default function InvoicesPage() {
     setUploading(false)
 
     // Refresh the list
+    setRefreshKey(k => k + 1)
+  }
+
+  async function retryInvoice(id: string) {
+    setRetrying(id)
+    try {
+      const res = await fetch('/api/upload-invoice', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setResultMsg(json.alerts > 0 ? `Invoice processed — ${json.alerts} price alert${json.alerts > 1 ? 's' : ''} detected.` : 'Invoice processed.')
+        setSuccess(true)
+      }
+    } catch {}
+    setRetrying(null)
     setRefreshKey(k => k + 1)
   }
 
@@ -142,7 +165,7 @@ export default function InvoicesPage() {
         </form>
         {uploading && (
           <p className="text-gray-400 text-sm mt-3">
-            Extracting line items and checking prices against your history — this takes about 30 seconds
+            {progress || 'Extracting line items and checking prices against your history'} …
           </p>
         )}
         {success && (
@@ -199,6 +222,15 @@ export default function InvoicesPage() {
                 <span className={`text-xs px-2 py-1 rounded-full capitalize ${statusColor[inv.status] ?? ''}`}>
                   {inv.status}
                 </span>
+                {inv.status === 'flagged' && (
+                  <button
+                    onClick={() => retryInvoice(inv.id)}
+                    disabled={retrying === inv.id}
+                    className="text-xs text-amber-400 hover:text-amber-300 underline disabled:opacity-50"
+                  >
+                    {retrying === inv.id ? 'Retrying…' : 'Retry'}
+                  </button>
+                )}
                 {inv.file_url && (
                   <a
                     href={inv.file_url}

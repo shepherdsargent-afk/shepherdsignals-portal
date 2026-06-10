@@ -43,12 +43,13 @@ export async function processInvoice(invoiceId: string): Promise<{ success?: boo
   if (invoice.status === 'processed') return { skipped: 'already processed' }
 
   // Atomic claim — the DB webhook and the upload route can both trigger processing;
-  // only the first one to stamp processed_at proceeds.
+  // only the first one to stamp processed_at proceeds. Flagged (errored) invoices
+  // can always be reclaimed so they are retryable.
   const { data: claimed } = await supabase
     .from('invoices')
-    .update({ processed_at: new Date().toISOString() })
+    .update({ processed_at: new Date().toISOString(), status: 'pending', notes: null })
     .eq('id', invoiceId)
-    .is('processed_at', null)
+    .or('processed_at.is.null,status.eq.flagged')
     .select('id')
   if (!claimed || claimed.length === 0) return { skipped: 'already being processed' }
 
@@ -113,19 +114,24 @@ async function extractPdfText(fileUrl: string): Promise<string> {
 
 // ─── Gemini extraction (vendor + metadata + line items in one call) ───────────
 
+const RETRYABLE = /not found|404|NOT_FOUND|unsupported|503|unavailable|overloaded|429|RESOURCE_EXHAUSTED|quota|fetch failed|ECONNRESET|timeout/i
+
 async function generateWithFallback(prompt: string): Promise<string> {
   const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
   let lastErr: any = null
-  for (const modelName of GEMINI_MODELS) {
-    try {
-      const model = gemini.getGenerativeModel({ model: modelName })
-      const result = await model.generateContent(prompt)
-      return result.response.text().trim()
-    } catch (err: any) {
-      lastErr = err
-      // try next model on not-found / overloaded / rate-limited; otherwise rethrow
-      if (!/not found|404|NOT_FOUND|unsupported|503|unavailable|overloaded|429|RESOURCE_EXHAUSTED|quota/i.test(String(err?.message))) throw err
+  // 3 cycles through the model chain with backoff — survives rate limits and blips
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const modelName of GEMINI_MODELS) {
+      try {
+        const model = gemini.getGenerativeModel({ model: modelName })
+        const result = await model.generateContent(prompt)
+        return result.response.text().trim()
+      } catch (err: any) {
+        lastErr = err
+        if (!RETRYABLE.test(String(err?.message))) throw err
+      }
     }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 4000 * (attempt + 1)))
   }
   throw lastErr ?? new Error('All Gemini models failed')
 }
@@ -213,17 +219,18 @@ async function processLineItem(
   vendorId: string | null,
   inv: ExtractedInvoice
 ): Promise<any | null> {
-  // Find or create product
-  const { data: existing } = await supabase
-    .from('products')
-    .select('id, name, unit')
-    .ilike('name', `%${item.item.trim().slice(0, 40)}%`)
-    .limit(1)
-  let product = existing?.[0] ?? null
+  // Find or create product — fuzzy match so name variations never create duplicates
+  const { data: allProducts } = await supabase.from('products').select('id, name, unit')
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+  const target = norm(item.item)
+  let product = (allProducts ?? []).find((p: any) => {
+    const pn = norm(p.name)
+    return pn === target || pn.includes(target) || target.includes(pn)
+  }) ?? null
   if (!product) {
     const { data: created } = await supabase
       .from('products')
-      .insert({ name: item.item.trim(), unit: item.unit || 'each' })
+      .insert({ name: item.item.trim(), unit: item.unit || 'each', description: 'Auto-created from invoice processing' })
       .select('id, name, unit')
       .single()
     product = created

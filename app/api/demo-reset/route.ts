@@ -45,6 +45,14 @@ export async function POST(request: Request) {
     const { count: recDel2 } = await admin.from('price_records').delete({ count: 'exact' })
       .eq('company_id', companyId).eq('notes', 'Auto from invoice processing')
 
+    // Remove products/vendors auto-created by processing (incl. older unmarked duplicates)
+    const { count: prodDel1 } = await admin.from('products').delete({ count: 'exact' })
+      .eq('description', 'Auto-created from invoice processing')
+    const { count: prodDel2 } = await admin.from('products').delete({ count: 'exact' })
+      .is('category', null).is('description', null)
+    const { count: vendDel } = await admin.from('vendors').delete({ count: 'exact' })
+      .eq('notes', 'Auto-created from invoice processing')
+
     const updates: any = {}
     if (typeof body.contact_email === 'string' && body.contact_email.includes('@')) updates.contact_email = body.contact_email
     if (['daily', 'weekly', 'both'].includes(body.plan)) updates.plan = body.plan
@@ -57,6 +65,8 @@ export async function POST(request: Request) {
       invoices_deleted: invDel ?? 0,
       alerts_deleted: alertDel ?? 0,
       price_records_deleted: (recDel1 ?? 0) + (recDel2 ?? 0),
+      products_deleted: (prodDel1 ?? 0) + (prodDel2 ?? 0),
+      vendors_deleted: vendDel ?? 0,
       company_updates: updates,
     })
   } catch (err: any) {

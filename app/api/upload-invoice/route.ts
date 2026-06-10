@@ -13,6 +13,33 @@ function serviceClient() {
   return createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
+// Retry processing for a flagged invoice (only if it belongs to the caller's company)
+export async function PUT(request: Request) {
+  try {
+    const authClient = createServerSupabaseClient()
+    const { data: { user } } = await authClient.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'Invoice id required' }, { status: 400 })
+
+    const admin = serviceClient()
+    const { data: cu } = await admin.from('company_users').select('company_id').eq('user_id', user.id).single()
+    if (!cu) return NextResponse.json({ error: 'No company linked to this account' }, { status: 403 })
+
+    const { data: invoice } = await admin.from('invoices').select('id, company_id').eq('id', id).single()
+    if (!invoice || invoice.company_id !== cu.company_id) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    const result = await processInvoice(id)
+    if (result.error) return NextResponse.json(result, { status: 500 })
+    return NextResponse.json(result)
+  } catch (err: any) {
+    return NextResponse.json({ error: String(err?.message ?? err) }, { status: 500 })
+  }
+}
+
 // Delete an invoice (only if it belongs to the caller's company)
 export async function DELETE(request: Request) {
   try {

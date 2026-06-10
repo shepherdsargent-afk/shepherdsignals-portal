@@ -7,11 +7,28 @@ export default async function SignalsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: signals } = await supabase
-    .from('market_signals')
-    .select('*')
-    .order('published_at', { ascending: false })
-    .limit(30)
+  // Signals are personalized: only categories this company actually buys
+  // (derived from vendors on their processed invoices)
+  const { data: cu } = await supabase.from('company_users').select('company_id').eq('user_id', user.id).single()
+  const { data: processedInvs } = await supabase
+    .from('invoices')
+    .select('vendors(category)')
+    .eq('company_id', cu?.company_id ?? '')
+    .eq('status', 'processed')
+  const purchasedCategories = Array.from(
+    new Set((processedInvs ?? []).map((i: any) => i.vendors?.category).filter(Boolean))
+  ) as string[]
+
+  let signals: any[] | null = []
+  if (purchasedCategories.length > 0) {
+    const { data } = await supabase
+      .from('market_signals')
+      .select('*')
+      .overlaps('affected_categories', purchasedCategories)
+      .order('published_at', { ascending: false })
+      .limit(30)
+    signals = data
+  }
 
   const impactColor: Record<string, string> = {
     high: 'text-red-400 bg-red-400/10 border-red-400/20',
