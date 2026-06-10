@@ -2,6 +2,9 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { MobileMenuButton } from './components/MobileMenuButton'
+import { AutoRefresh } from './components/AutoRefresh'
+
+export const dynamic = 'force-dynamic'
 import { SignOutButton } from './components/SignOutButton'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen bg-[#080d1a] overflow-hidden">
+      <AutoRefresh />
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col bg-[#0a0f1e] border-r border-white/5">
