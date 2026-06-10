@@ -84,6 +84,19 @@ export default function InvoicesPage() {
         const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData })
         let json: any = null
         try { json = await res.json() } catch { json = { error: 'Processing took too long — use Retry on the invoice below' } }
+        // If the file uploaded but processing hit a transient error, retry once automatically
+        if (res.ok && json?.id && !json.processed) {
+          setProgress(`Retrying ${file.name} …`)
+          try {
+            const r2 = await fetch('/api/upload-invoice', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: json.id }),
+            })
+            const j2 = await r2.json()
+            if (r2.ok && j2.success) json = { ...json, processed: true, alerts: j2.alerts ?? 0, processing_error: null }
+          } catch {}
+        }
         uploads.push(res.ok ? json : { error: json.error ?? 'Upload failed', name: file.name })
       } catch (err: any) {
         uploads.push({ error: String(err?.message ?? err), name: file.name })

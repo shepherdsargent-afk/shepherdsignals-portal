@@ -8,7 +8,36 @@ const SUPABASE_URL = 'https://zsqrtnrfjxdjwqvssbtb.supabase.co'
 // Flag increases above this percentage (catches gradual price creep)
 const ALERT_THRESHOLD_PCT = 2.5
 
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest']
+// Static fallback only — the real chain is discovered live from Google's ListModels
+// API (gemini-1.5-* returned 404 in June 2026; hardcoded lists rot as Google rotates models)
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite']
+
+let cachedModels: string[] | null = null
+
+async function getModelChain(): Promise<string[]> {
+  if (cachedModels) return cachedModels
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}&pageSize=200`
+    )
+    if (res.ok) {
+      const json = await res.json()
+      const names: string[] = (json.models ?? [])
+        .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+        .map((m: any) => String(m.name).replace('models/', ''))
+        .filter((n: string) => /flash/i.test(n) && !/preview|exp|image|tts|live|thinking|8b/i.test(n))
+      // newest version first; full flash before lite at the same version
+      const score = (n: string) => {
+        const ver = parseFloat(n.match(/(\d+(?:\.\d+)?)/)?.[1] ?? '0')
+        return ver * 10 - (/lite/.test(n) ? 1 : 0)
+      }
+      names.sort((a, b) => score(b) - score(a))
+      if (names.length) cachedModels = Array.from(new Set([...names, ...GEMINI_MODELS]))
+    }
+  } catch {}
+  if (!cachedModels) cachedModels = GEMINI_MODELS
+  return cachedModels
+}
 
 function svc() {
   return createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -120,12 +149,13 @@ const RETRYABLE = /not found|404|NOT_FOUND|unsupported|503|unavailable|overloade
 
 async function generateWithFallback(prompt: string): Promise<string> {
   const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const models = await getModelChain()
   let lastErr: any = null
   // Retry across the model chain, but stay inside the serverless time budget —
   // running out of retries beats the function being killed mid-flight.
   const deadline = Date.now() + 35_000
-  for (let attempt = 0; attempt < 3; attempt++) {
-    for (const modelName of GEMINI_MODELS) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    for (const modelName of models) {
       if (Date.now() > deadline) throw lastErr ?? new Error('Gemini retry budget exceeded')
       try {
         const model = gemini.getGenerativeModel({ model: modelName })
@@ -134,9 +164,13 @@ async function generateWithFallback(prompt: string): Promise<string> {
       } catch (err: any) {
         lastErr = err
         if (!RETRYABLE.test(String(err?.message))) throw err
+        // A model that 404s is gone — drop it from the cached chain
+        if (/not found|404|NOT_FOUND/i.test(String(err?.message)) && cachedModels) {
+          cachedModels = cachedModels.filter(m => m !== modelName)
+        }
       }
     }
-    if (attempt < 2 && Date.now() + 3000 < deadline) await new Promise(r => setTimeout(r, 3000))
+    if (attempt < 3 && Date.now() + 2000 < deadline) await new Promise(r => setTimeout(r, 2000))
   }
   throw lastErr ?? new Error('All Gemini models failed')
 }
