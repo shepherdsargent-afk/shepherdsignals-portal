@@ -350,8 +350,7 @@ function buildAlertEmailHtml(companyName: string, vendorName: string, alerts: an
 <body style="margin:0;padding:0;background:#0a1f18;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:700px;margin:0 auto;padding:32px 16px;">
     <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span style="font-size:24px;">🐑</span>
+      <div style="display:inline-flex;align-items:center;margin-bottom:8px;">
         <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">ShepherdSignals</span>
       </div>
       <p style="color:#6b7280;margin:0;font-size:14px;">Invoice Alert — ${date}</p>
